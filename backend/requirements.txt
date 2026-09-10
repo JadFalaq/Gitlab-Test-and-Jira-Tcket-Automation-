@@ -1,0 +1,51 @@
+# =============================================================================
+# Backend Python dependencies
+# =============================================================================
+
+# --- Web Framework ---
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+
+# --- Config ---
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# --- HTTP Client (for Ollama, Jira, GitLab API calls) ---
+httpx>=0.24.0
+
+# --- Database (prototype: SQLite via SQLAlchemy) ---
+sqlalchemy>=2.0.0
+aiosqlite>=0.19.0
+
+# --- Testing ---
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# --- Utilities ---
+python-dotenv>=1.0.0
+
+# --- Gherkin validation (module 3) ---
+# Parseur officiel Cucumber : valide la syntaxe des .feature générés
+# https://github.com/cucumber/gherkin/tree/main/python
+gherkin-official>=41.0.0
+
+# --- DLP (module 2, masquage des données personnelles avant envoi LLM) ---
+# Presidio (NER local via spaCy, aucun appel réseau) + le modèle français :
+#   python -m spacy download fr_core_news_lg
+# (pas listable comme dépendance pip classique, cf. backend/README.md)
+presidio-analyzer>=2.2.0
+presidio-anonymizer>=2.2.0
+spacy>=3.7.0
+
+# --- Pièces jointes (module 2, upload + extraction de texte) ---
+python-multipart>=0.0.9   # requis par FastAPI pour parser les formulaires multipart/fichiers
+pypdf>=4.0.0
+python-docx>=1.1.0
+python-pptx>=0.6.23
+openpyxl>=3.1.0
+
+# --- Authentification SSO (module 8, OIDC générique) ---
+# Signature/vérification du cookie de session applicatif (pas les tokens du
+# fournisseur SSO lui-même) — cf. app/services/auth_service.py.
+PyJWT>=2.8.0

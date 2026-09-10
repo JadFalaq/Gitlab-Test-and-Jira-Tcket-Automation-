@@ -1,0 +1,53 @@
+# --- Environnement / secrets (jamais committés, cf. CLAUDE.md règle 7) ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Base SQLite prototype (recréée par init_db au démarrage) ---
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# --- Pièces jointes uploadées (module 2, jamais committées) ---
+backend/uploads/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+*.local
+
+# --- Outillage local ---
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# --- OS / éditeurs ---
+.DS_Store
+Thumbs.db
+*.log
+
+.claude/ 
+
+.claude/
+
+
+.claude.new/
+.claude.new/
+Claude
+
+backend/.env
+backend/.env.example
+
+
+.env
+.env.*
+!.env.example
