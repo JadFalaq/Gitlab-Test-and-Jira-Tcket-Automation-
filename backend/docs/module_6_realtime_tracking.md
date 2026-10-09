@@ -29,11 +29,11 @@ Frontend
 1. **Server-Sent Events, pas de WebSocket** — un flux unidirectionnel (serveur → client) suffit à ce besoin (pas d'interaction bidirectionnelle nécessaire). SSE s'implémente avec un simple générateur async + `StreamingResponse` de FastAPI, sans dépendance supplémentaire (pas de `sse-starlette`, pas de `websockets`).
 2. **Chaque tick du flux ouvre sa propre session DB** (`AsyncSessionLocal`, pas de `Depends(get_db)`) — le flux vit plus longtemps qu'une requête HTTP classique, une session DB par requête (pattern du module 4) ne conviendrait pas.
 3. **Best-effort** — si `sync_all_tickets` échoue (ex : Jira temporairement injoignable), le flux retombe sur `list_tracked_tickets` (dernier snapshot en cache) plutôt que d'interrompre la connexion SSE.
-4. **`MockTicketProvider` simule une progression réaliste** (`To Do` → `In Progress` après 20s → `Done` après 60s, cf. module 5) — pour que le tableau de suivi ait quelque chose à montrer en démo sans compte Jira/GitLab réel connecté.
+4. **Pas de faux statuts** — le suivi interroge uniquement le vrai Jira. Sans Jira configuré, les tickets gardent leur dernier statut connu. Les tests utilisent `FakeJiraProvider` (`tests/fakes/tickets.py`), qui simule `To Do` → `In Progress` (20 s) → `Done` (60 s).
 5. **Frontend : fetch initial + SSE, pas de polling** — `TrackingDashboard.tsx` charge un premier snapshot via `GET /api/tracking/tickets` (affichage immédiat), puis bascule sur les mises à jour poussées par le flux SSE. Un indicateur (point vert/gris) reflète l'état de la connexion.
 
 ## Points d'incertitude
 
 1. **Reconnexion SSE** — le comportement de reconnexion automatique du navigateur (`EventSource`) est utilisé tel quel, sans backoff custom ni limite de tentatives.
-2. **Un seul flux global** — pas de filtrage par session ou par provider côté SSE ; le frontend reçoit toujours l'intégralité des tickets suivis. Acceptable au volume prototype, à revoir si le nombre de tickets grandit significativement.
-3. **`TRACKING_SYNC_INTERVAL_SECONDS=15` par défaut** — valeur arbitraire, à ajuster selon les limites de rate-limiting réelles de Jira/GitLab si utilisé avec de vrais comptes.
+2. **Un flux par utilisateur, sans filtre plus fin** — chaque flux SSE ne contient que les tickets des sessions de l'utilisateur connecté (cf. `tests/test_ownership.py`), mais toujours tous ces tickets, sans pagination. À revoir si le nombre de tickets par utilisateur grandit significativement.
+3. **`TRACKING_SYNC_INTERVAL_SECONDS=15` par défaut** — valeur arbitraire, à ajuster selon les limites de rate-limiting réelles de Jira.

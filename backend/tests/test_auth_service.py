@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import pytest
 
-from app.agents.auth_layer import AuthenticatedUser
+from app.auth.oidc import AuthenticatedUser
 from app.config import settings
 from app.services import auth_service
 

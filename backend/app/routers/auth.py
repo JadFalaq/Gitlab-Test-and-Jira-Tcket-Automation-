@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.auth_layer import AuthenticatedUser, AuthProviderError, BaseAuthProvider
+from app.auth.oidc import AuthenticatedUser, AuthProviderError, BaseAuthProvider
 from app.config import settings
 from app.database import get_db
 from app.dependencies import SESSION_COOKIE_NAME, get_auth_provider_dependency, get_current_user
@@ -40,6 +40,19 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 _OAUTH_STATE_COOKIE = "oauth_state"
 
 
+def _cookie_flags() -> dict:
+    """Attributs communs à tous les cookies d'auth : httponly + samesite=lax
+    partout, `secure` en production (HTTPS obligatoire, le cookie n'est
+    jamais envoyé en clair)."""
+    return {"httponly": True, "samesite": "lax", "secure": settings.is_production}
+
+
+def _set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        SESSION_COOKIE_NAME, token, max_age=settings.AUTH_SESSION_MAX_AGE_SECONDS, path="/", **_cookie_flags()
+    )
+
+
 @router.get("/config")
 async def auth_config() -> dict:
     """
@@ -49,7 +62,10 @@ async def auth_config() -> dict:
     plan plutôt que de faire cliquer sur un bouton voué à échouer (503) —
     cf. LoginScreen.tsx.
     """
-    return {"sso_configured": bool(settings.AUTH_OIDC_ISSUER)}
+    return {
+        "sso_configured": bool(settings.AUTH_OIDC_ISSUER),
+        "dev_login_enabled": settings.dev_login_enabled,
+    }
 
 
 @router.get("/login")
@@ -64,9 +80,7 @@ async def login(provider: BaseAuthProvider = Depends(get_auth_provider_dependenc
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     response = RedirectResponse(authorization_url, status_code=302)
-    response.set_cookie(
-        _OAUTH_STATE_COOKIE, state, httponly=True, samesite="lax", max_age=600, path="/api/auth"
-    )
+    response.set_cookie(_OAUTH_STATE_COOKIE, state, max_age=600, path="/api/auth", **_cookie_flags())
     return response
 
 
@@ -99,15 +113,8 @@ async def callback(
     token = auth_service.create_session_token(user.id)
 
     response = RedirectResponse(settings.FRONTEND_URL, status_code=302)
-    response.delete_cookie(_OAUTH_STATE_COOKIE, path="/api/auth")
-    response.set_cookie(
-        SESSION_COOKIE_NAME,
-        token,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.AUTH_SESSION_MAX_AGE_SECONDS,
-        path="/",
-    )
+    response.delete_cookie(_OAUTH_STATE_COOKIE, path="/api/auth", **_cookie_flags())
+    _set_session_cookie(response, token)
     return response
 
 
@@ -119,22 +126,16 @@ def _redirect_with_error(message: str) -> RedirectResponse:
 @router.post("/dev-login")
 async def dev_login(payload: DevLoginRequest, db: AsyncSession = Depends(get_db)) -> Response:
     """
-    Connexion de secours SANS SSO réel — utilisable UNIQUEMENT tant
-    qu'aucun fournisseur OIDC n'est configuré (settings.AUTH_OIDC_ISSUER
-    vide), pour pouvoir utiliser/tester le prototype multi-utilisateur
-    avant l'enregistrement d'une vraie app SSO côté Google
-    Workspace/Entra — cf. docs/module_8_auth.md. Se désactive
-    automatiquement (404) dès que la vraie config SSO est renseignée :
-    aucune bascule à retenir de désactiver manuellement en "production".
+    Connexion de secours SANS SSO réel — uniquement en APP_ENV=dev/test et
+    tant qu'aucun fournisseur OIDC n'est configuré (cf.
+    settings.dev_login_enabled, docs/module_8_auth.md). Répond 404 partout
+    ailleurs, en particulier toujours en production.
 
     ⚠️ Aucune vérification d'identité : n'importe qui atteignant ce endpoint
-    peut se connecter comme n'importe quel email. Acceptable seulement en
-    local, avant configuration SSO — jamais exposé publiquement.
+    peut se connecter comme n'importe quel email.
     """
-    if settings.AUTH_OIDC_ISSUER:
-        raise HTTPException(
-            status_code=404, detail="SSO configuré : la connexion de développement est désactivée"
-        )
+    if not settings.dev_login_enabled:
+        raise HTTPException(status_code=404, detail="Connexion de développement désactivée")
 
     authenticated = AuthenticatedUser(
         email=payload.email,
@@ -145,14 +146,7 @@ async def dev_login(payload: DevLoginRequest, db: AsyncSession = Depends(get_db)
     token = auth_service.create_session_token(user.id)
 
     response = JSONResponse(UserResponse.model_validate(user).model_dump(mode="json"))
-    response.set_cookie(
-        SESSION_COOKIE_NAME,
-        token,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.AUTH_SESSION_MAX_AGE_SECONDS,
-        path="/",
-    )
+    _set_session_cookie(response, token)
     return response
 
 
@@ -164,5 +158,5 @@ async def me(user: UserModel = Depends(get_current_user)) -> UserModel:
 @router.post("/logout")
 async def logout() -> Response:
     response = Response(status_code=204)
-    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/", **_cookie_flags())
     return response

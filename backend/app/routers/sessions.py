@@ -36,6 +36,7 @@ from app.schemas.session import (
     SessionSummary,
 )
 from app.services import attachment_service, session_service
+from app.services.file_validation import AttachmentRejectedError, detect_file_type
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,26 @@ def _to_summary(session: SessionModel) -> SessionSummary:
         created_at=session.created_at,
         updated_at=session.updated_at,
     )
+
+
+_READ_CHUNK_BYTES = 1024 * 1024
+
+
+async def _read_with_size_limit(upload: UploadFile) -> bytes:
+    """Lit le fichier par blocs et s'arrête dès que la taille max est
+    dépassée (413), sans charger un fichier énorme en mémoire."""
+    max_bytes = settings.MAX_ATTACHMENT_SIZE_MB * 1024 * 1024
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await upload.read(_READ_CHUNK_BYTES):
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"'{upload.filename}' dépasse la taille maximale autorisée ({settings.MAX_ATTACHMENT_SIZE_MB} Mo)",
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @router.post("", response_model=SessionResponse, status_code=201)
@@ -78,24 +99,21 @@ async def create_session(
     """
     payload = SessionCreateRequest(user_input=user_input, context=context)
 
-    max_attachment_bytes = settings.MAX_ATTACHMENT_SIZE_MB * 1024 * 1024
     uploaded: list[UploadedFile] = []
     for upload in files:
         if upload.filename is None:
             continue
-        content = await upload.read()
-        if len(content) > max_attachment_bytes:
-            raise HTTPException(
-                status_code=413,
-                detail=(
-                    f"'{upload.filename}' dépasse la taille maximale autorisée "
-                    f"({settings.MAX_ATTACHMENT_SIZE_MB} Mo)"
-                ),
-            )
+        content = await _read_with_size_limit(upload)
+        try:
+            detected = detect_file_type(upload.filename, content)
+        except AttachmentRejectedError as exc:
+            raise HTTPException(status_code=415, detail=str(exc)) from exc
         uploaded.append(
             UploadedFile(
                 filename=upload.filename,
-                content_type=upload.content_type or "application/octet-stream",
+                # Type détecté depuis le contenu, jamais celui déclaré par le
+                # client : c'est lui qui est renvoyé au téléchargement.
+                content_type=detected.mime_type,
                 content=content,
             )
         )

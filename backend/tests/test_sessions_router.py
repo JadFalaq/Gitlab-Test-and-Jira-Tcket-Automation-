@@ -4,7 +4,7 @@ Tests d'intégration — Module 4 : routes HTTP (app/routers/sessions.py)
 Vérifie le câblage FastAPI de bout en bout : dependency injection (db +
 agents), sérialisation des réponses, codes HTTP d'erreur (404, 409).
 Les agents sont surchargés via app.dependency_overrides avec des
-MockProvider pour rester déterministe et rapide.
+FakeLLMProvider pour rester déterministe et rapide.
 
 Toutes les données sont fictives.
 """
@@ -14,7 +14,7 @@ from __future__ import annotations
 from httpx import ASGITransport, AsyncClient
 
 from app.agents.chat_agent import ChatAgent
-from app.agents.llm_layer import MockProvider
+from tests.fakes.llm import FakeLLMProvider
 from app.agents.requirement_analyzer import RequirementAnalyzerAgent
 from app.agents.test_design_agent import TestDesignAgent
 from app.database import get_db, get_session_factory
@@ -50,15 +50,15 @@ async def client(db_sessionmaker):
     # jamais dans le fichier configuré par DATABASE_URL (cf. app/database.py).
     app.dependency_overrides[get_session_factory] = lambda: db_sessionmaker
     app.dependency_overrides[get_requirement_analyzer] = lambda: RequirementAnalyzerAgent(
-        llm_provider=MockProvider(custom_responses={"paiement": VALID_REQUIREMENT_JSON})
+        llm_provider=FakeLLMProvider(custom_responses={"paiement": VALID_REQUIREMENT_JSON})
     )
     app.dependency_overrides[get_test_design_agent] = lambda: TestDesignAgent(
-        llm_provider=MockProvider(custom_responses={"paiement": VALID_TEST_DESIGN_JSON})
+        llm_provider=FakeLLMProvider(custom_responses={"paiement": VALID_TEST_DESIGN_JSON})
     )
     # Module 9 : jamais le get_chat_agent() par défaut dans un test — il lirait
     # le vrai settings.LLM_PROVIDER du poste (peut valoir "ollama" en local),
     # même risque que documenté pour Jira dans conftest.py.
-    app.dependency_overrides[get_chat_agent] = lambda: ChatAgent(llm_provider=MockProvider())
+    app.dependency_overrides[get_chat_agent] = lambda: ChatAgent(llm_provider=FakeLLMProvider())
     app.dependency_overrides[get_current_user] = lambda: _FAKE_USER
 
     transport = ASGITransport(app=app)
@@ -122,6 +122,12 @@ class TestSessionsRouterHappyPath:
         assert accept_tests_resp.status_code == 200
         assert accept_tests_resp.json()["status"] == "validated"
 
+        # Le texte .feature est rendu par le backend, une entrée par feature
+        body = accept_tests_resp.json()
+        assert len(body["gherkin_feature_files"]) == len(body["test_design_output"]["gherkin_features"])
+        assert body["gherkin_feature_files"][0].startswith(("Feature:", "@"))
+        assert "Scenario:" in body["gherkin_feature_files"][0]
+
     @pytest.mark.asyncio
     async def test_regenerate_requirement_background_failure_is_visible(self, client, monkeypatch):
         """Un échec LLM en tâche de fond (regenerate) ne doit jamais rester
@@ -134,7 +140,7 @@ class TestSessionsRouterHappyPath:
         await _finalize_and_wait(client, session_id)
 
         app.dependency_overrides[get_requirement_analyzer] = lambda: RequirementAnalyzerAgent(
-            llm_provider=MockProvider(custom_responses={"requirement analyzer agent": INVALID_JSON})
+            llm_provider=FakeLLMProvider(custom_responses={"requirement analyzer agent": INVALID_JSON})
         )
 
         regen_resp = await client.post(f"/api/sessions/{session_id}/requirement/regenerate")
@@ -263,6 +269,50 @@ class TestSessionsRouterHappyPath:
 
         assert response.status_code == 413
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("filename", "content", "declared_type"),
+        [
+            ("page.png", b"<html><script>alert(1)</script></html>", "image/png"),  # HTML déguisé en image
+            ("outil.exe", b"MZ\x90\x00", "application/octet-stream"),  # extension non supportée
+            ("notes.txt", b"\x00\x01binaire", "text/plain"),  # binaire renommé en .txt
+        ],
+    )
+    async def test_create_session_rejects_files_whose_content_does_not_match(
+        self, client, monkeypatch, tmp_path, filename, content, declared_type
+    ):
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+
+        response = await client.post(
+            "/api/sessions",
+            data={"user_input": FICTIONAL_USER_INPUT},
+            files={"files": (filename, content, declared_type)},
+        )
+
+        assert response.status_code == 415
+        assert list(tmp_path.iterdir()) == []  # rien d'écrit sur disque
+
+    @pytest.mark.asyncio
+    async def test_attachment_is_served_with_detected_type_not_client_type(self, client, monkeypatch, tmp_path):
+        """Un vrai PDF déclaré text/html par le client est stocké et servi en application/pdf."""
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+
+        created = await client.post(
+            "/api/sessions",
+            data={"user_input": FICTIONAL_USER_INPUT},
+            files={"files": ("doc.pdf", b"%PDF-1.4 [FICTIF]", "text/html")},
+        )
+        body = created.json()
+        attachment = body["attachments"][0]
+        served = await client.get(f"/api/sessions/{body['id']}/attachments/{attachment['id']}/file")
+
+        assert attachment["content_type"] == "application/pdf"
+        assert served.headers["content-type"] == "application/pdf"
+
 
 class TestChatEndpoints:
     @pytest.mark.asyncio
@@ -307,7 +357,7 @@ class TestChatEndpoints:
         create_resp = await client.post("/api/sessions", data={"user_input": FICTIONAL_USER_INPUT})
         session_id = create_resp.json()["id"]
 
-        class _FailingProvider(MockProvider):
+        class _FailingProvider(FakeLLMProvider):
             async def complete(self, request):
                 raise LLMProviderError("Simulated failure", provider="failing")
 

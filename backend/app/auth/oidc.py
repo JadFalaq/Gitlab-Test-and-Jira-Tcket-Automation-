@@ -15,13 +15,15 @@ Design decisions:
       cache longue durée : le prototype ne redémarre pas assez souvent pour
       que le coût compte, et ça évite un état obsolète si le fournisseur
       change ses endpoints.
-    - Identité récupérée via l'endpoint standard OIDC /userinfo (aller-retour
-      serveur-à-serveur authentifié par l'access token obtenu en échange du
-      code), PAS en décodant/vérifiant la signature du id_token JWT
-      nous-mêmes — plus simple pour ce prototype, et le canal serveur-à-
-      serveur direct avec le fournisseur donne une garantie équivalente.
-      À durcir (vérification de signature + claims iss/aud/exp du id_token)
-      avant un usage réellement critique.
+    - L'id_token renvoyé par l'échange du code est TOUJOURS vérifié :
+      signature (clés publiques JWKS du fournisseur, RS256), émetteur
+      (`iss` = issuer du document de découverte), audience (`aud` = notre
+      client_id) et expiration (`exp`, 60 s de tolérance d'horloge). Le `sub`
+      vérifié fait foi ; /userinfo complète seulement l'email et le nom
+      (Entra ID ne met pas toujours l'email dans l'id_token) et doit
+      renvoyer le même `sub`.
+    - Pas de `nonce` : le code n'est échangé que côté serveur avec le
+      client_secret, et le `state` anti-CSRF est vérifié par le router.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from typing import NamedTuple, Optional
 from urllib.parse import urlencode
 
 import httpx
+import jwt
 
 from app.config import settings
 
@@ -40,6 +43,13 @@ logger = logging.getLogger(__name__)
 
 class AuthProviderError(Exception):
     """Échec d'authentification (config manquante, code invalide, fournisseur SSO injoignable)."""
+
+
+# Algorithme de signature des id_token de Google et de Microsoft Entra ID.
+# Liste fermée : jamais "none" ni un algorithme symétrique (HS256), qui
+# permettraient de forger un token sans la clé privée du fournisseur.
+_ID_TOKEN_ALGORITHMS = ["RS256"]
+_CLOCK_SKEW_SECONDS = 60
 
 
 class AuthenticatedUser(NamedTuple):
@@ -142,9 +152,15 @@ class OidcAuthProvider(BaseAuthProvider):
             except httpx.HTTPError as exc:
                 raise AuthProviderError(f"Échec de l'échange du code d'autorisation : {exc}") from exc
 
-            access_token = token_response.json().get("access_token")
+            tokens = token_response.json()
+            access_token = tokens.get("access_token")
             if not access_token:
                 raise AuthProviderError("Réponse du fournisseur SSO sans access_token")
+            id_token = tokens.get("id_token")
+            if not id_token:
+                raise AuthProviderError("Réponse du fournisseur SSO sans id_token")
+
+            claims = await self._verify_id_token(client, discovery, id_token)
 
             try:
                 userinfo_response = await client.get(
@@ -156,15 +172,56 @@ class OidcAuthProvider(BaseAuthProvider):
                 raise AuthProviderError(f"Échec de récupération du profil utilisateur : {exc}") from exc
 
         userinfo = userinfo_response.json()
-        email = userinfo.get("email")
+        subject = str(claims["sub"])
+        if "sub" in userinfo and str(userinfo["sub"]) != subject:
+            raise AuthProviderError("Le profil /userinfo ne correspond pas à l'id_token vérifié")
+
+        email = claims.get("email") or userinfo.get("email")
         if not email:
             raise AuthProviderError("Le fournisseur SSO n'a renvoyé aucun email pour cet utilisateur")
 
         return AuthenticatedUser(
             email=email,
-            display_name=userinfo.get("name") or email,
-            subject=str(userinfo.get("sub", email)),
+            display_name=claims.get("name") or userinfo.get("name") or email,
+            subject=subject,
         )
+
+    async def _verify_id_token(self, client: httpx.AsyncClient, discovery: dict, id_token: str) -> dict:
+        """Vérifie signature + iss/aud/exp de l'id_token, retourne ses claims.
+
+        Raises:
+            AuthProviderError: token invalide, clé inconnue ou JWKS injoignable.
+        """
+        try:
+            header = jwt.get_unverified_header(id_token)
+        except jwt.PyJWTError as exc:
+            raise AuthProviderError(f"id_token illisible : {exc}") from exc
+
+        try:
+            jwks_response = await client.get(discovery["jwks_uri"])
+            jwks_response.raise_for_status()
+            key_set = jwt.PyJWKSet.from_dict(jwks_response.json())
+        except (httpx.HTTPError, KeyError) as exc:
+            raise AuthProviderError(f"Clés publiques du fournisseur SSO injoignables : {exc}") from exc
+        except jwt.PyJWTError as exc:
+            raise AuthProviderError(f"Clés publiques du fournisseur SSO invalides : {exc}") from exc
+
+        signing_key = next((k for k in key_set.keys if k.key_id == header.get("kid")), None)
+        if signing_key is None:
+            raise AuthProviderError("id_token signé par une clé inconnue du fournisseur SSO")
+
+        try:
+            return jwt.decode(
+                id_token,
+                key=signing_key.key,
+                algorithms=_ID_TOKEN_ALGORITHMS,
+                audience=self._client_id,
+                issuer=discovery.get("issuer", self._issuer),
+                leeway=_CLOCK_SKEW_SECONDS,
+                options={"require": ["exp", "iat", "iss", "aud", "sub"]},
+            )
+        except jwt.PyJWTError as exc:
+            raise AuthProviderError(f"id_token invalide : {exc}") from exc
 
 
 def get_auth_provider() -> BaseAuthProvider:

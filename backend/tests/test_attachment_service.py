@@ -133,9 +133,26 @@ class TestSaveAttachment:
 
         disk_path = tmp_path / attachment.file_path
         assert disk_path.read_bytes() == b"[FICTIF octets]"
+        assert attachment.id is not None  # généré avant l'écriture disque, pas au flush
         assert disk_path.name == f"{attachment.id}.png"  # jamais dérivé de `filename`
         assert attachment.filename == "capture.png"  # conservé en métadonnée pour l'affichage
         assert attachment.kind == "image"
+
+    @pytest.mark.asyncio
+    async def test_two_files_with_same_extension_do_not_overwrite_each_other(
+        self, db_session, monkeypatch, tmp_path
+    ):
+        """Régression : l'id n'était généré qu'au flush, donc tous les fichiers
+        d'une session s'appelaient "None.<ext>" et le second écrasait le premier."""
+        monkeypatch.setattr(attachment_service.settings, "UPLOAD_DIR", str(tmp_path))
+
+        first = await attachment_service.save_attachment(db_session, "s1", "a.pdf", "application/pdf", b"[FICTIF] A")
+        second = await attachment_service.save_attachment(db_session, "s1", "b.pdf", "application/pdf", b"[FICTIF] B")
+
+        assert first.file_path != second.file_path
+        assert (tmp_path / first.file_path).read_bytes() == b"[FICTIF] A"
+        assert (tmp_path / second.file_path).read_bytes() == b"[FICTIF] B"
+        assert "None" not in first.file_path
 
     @pytest.mark.asyncio
     async def test_path_traversal_filename_does_not_escape_upload_dir(self, db_session, monkeypatch, tmp_path):

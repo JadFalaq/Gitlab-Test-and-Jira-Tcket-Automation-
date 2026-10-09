@@ -3,11 +3,11 @@ Module 8 — Authentification SSO : persistance utilisateur + cookie de session.
 
 Deux responsabilités distinctes, à ne pas confondre :
     - `upsert_user` : matérialise en base l'identité renvoyée par le
-      fournisseur OIDC (app/agents/auth_layer.py) après un login réussi.
+      fournisseur OIDC (app/auth/oidc.py) après un login réussi.
     - `create_session_token` / `decode_session_token` : le cookie de session
       *applicatif* (JWT signé avec settings.AUTH_SESSION_SECRET), distinct
       des tokens du fournisseur SSO lui-même (jamais stockés côté serveur
-      au-delà de l'appel /userinfo, cf. auth_layer.py).
+      au-delà de l'appel /userinfo, cf. app/auth/oidc.py).
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.auth_layer import AuthenticatedUser
+from app.auth.oidc import AuthenticatedUser
 from app.config import settings
 from app.models.session import UserModel
 

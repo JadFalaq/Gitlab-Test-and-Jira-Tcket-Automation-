@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -86,11 +87,16 @@ async def save_attachment(
     """
     kind = classify_attachment(filename, content_type)
     attachment = AttachmentModel(
+        # Id généré ici et non par le `default` SQLAlchemy : ce dernier n'est
+        # appliqué qu'au flush, or le nom de fichier sur disque en dépend
+        # juste en dessous (sinon tous les fichiers s'appellent "None.<ext>"
+        # et s'écrasent entre eux).
+        id=str(uuid.uuid4()),
         session_id=session_id,
         filename=filename[:255],
         content_type=content_type or "application/octet-stream",
         kind=kind,
-        file_path="",  # renseigné ci-dessous, une fois l'id généré par défaut
+        file_path="",  # renseigné ci-dessous, à partir de l'id
     )
 
     ext = _safe_extension(filename)

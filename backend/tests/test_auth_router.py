@@ -17,7 +17,7 @@ from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
 
-from app.agents.auth_layer import AuthenticatedUser, AuthProviderError, BaseAuthProvider
+from app.auth.oidc import AuthenticatedUser, AuthProviderError, BaseAuthProvider
 from app.database import get_db, get_session_factory
 from app.dependencies import get_auth_provider_dependency
 from app.main import app
@@ -71,7 +71,7 @@ class TestAuthConfig:
         response = await client.get("/api/auth/config")
 
         assert response.status_code == 200
-        assert response.json() == {"sso_configured": False}
+        assert response.json() == {"sso_configured": False, "dev_login_enabled": True}
 
     @pytest.mark.asyncio
     async def test_reports_sso_configured_when_issuer_set(self, client, monkeypatch):
@@ -81,7 +81,7 @@ class TestAuthConfig:
 
         response = await client.get("/api/auth/config")
 
-        assert response.json() == {"sso_configured": True}
+        assert response.json() == {"sso_configured": True, "dev_login_enabled": False}
 
 
 class TestLogin:
@@ -197,6 +197,17 @@ class TestDevLogin:
         assert response.json()["display_name"] == "assignee@example.com"
 
     @pytest.mark.asyncio
+    async def test_returns_404_in_production(self, client, monkeypatch):
+        """Jamais de connexion sans SSO en production, même sans issuer configuré."""
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "APP_ENV", "prod")
+
+        response = await client.post("/api/auth/dev-login", json={"email": "assignee@example.com"})
+
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
     async def test_returns_404_once_real_sso_is_configured(self, client, monkeypatch):
         from app.config import settings
 
@@ -264,3 +275,35 @@ class TestLogout:
         assert response.status_code == 204
         set_cookie = response.headers.get("set-cookie", "")
         assert "session_token=" in set_cookie
+
+
+class TestCookieFlags:
+    @pytest.mark.asyncio
+    async def test_dev_cookie_is_httponly_lax_not_secure(self, client):
+        response = await client.post("/api/auth/dev-login", json={"email": "assignee@example.com"})
+
+        set_cookie = response.headers["set-cookie"].lower()
+        assert "httponly" in set_cookie
+        assert "samesite=lax" in set_cookie
+        assert "secure" not in set_cookie  # http://localhost en dev
+
+    @pytest.mark.asyncio
+    async def test_production_cookies_are_secure(self, client, monkeypatch):
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "APP_ENV", "prod")
+
+        login = await client.get("/api/auth/login", follow_redirects=False)
+        state = login.headers["set-cookie"]
+        callback = await client.get(
+            "/api/auth/callback",
+            params={"code": "fictional-code", "state": login.cookies["oauth_state"]},
+            headers={"cookie": f"oauth_state={login.cookies['oauth_state']}"},
+            follow_redirects=False,
+        )
+        session_cookies = [c for c in callback.headers.get_list("set-cookie") if c.startswith("session_token=")]
+        logout = await client.post("/api/auth/logout")
+
+        assert "secure" in state.lower()
+        assert len(session_cookies) == 1 and "secure" in session_cookies[0].lower()
+        assert "secure" in logout.headers["set-cookie"].lower()

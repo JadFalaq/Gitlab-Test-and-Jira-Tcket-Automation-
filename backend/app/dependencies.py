@@ -3,7 +3,7 @@ Dépendances FastAPI injectables — factories par défaut pour les agents.
 
 Séparées du reste pour que les tests puissent surcharger
 `app.dependency_overrides[get_requirement_analyzer]` / `[get_test_design_agent]`
-avec des agents utilisant un MockProvider, sans toucher au code des routers.
+avec des agents utilisant un faux LLM (tests/fakes/llm.py), sans toucher au code des routers.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.auth_layer import BaseAuthProvider, get_auth_provider
+from app.auth.oidc import BaseAuthProvider, get_auth_provider
 from app.agents.chat_agent import ChatAgent
 from app.agents.requirement_analyzer import RequirementAnalyzerAgent
 from app.agents.test_design_agent import TestDesignAgent
@@ -35,7 +35,7 @@ def get_chat_agent() -> ChatAgent:
 
 
 def get_auth_provider_dependency() -> BaseAuthProvider:
-    """Ré-exporte get_auth_provider (app/agents/auth_layer.py) comme
+    """Ré-exporte get_auth_provider (app/auth/oidc.py) comme
     dépendance FastAPI — surchargeable en test comme les deux ci-dessus,
     sans toucher au code de app/routers/auth.py."""
     return get_auth_provider()
