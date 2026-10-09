@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Set-Location \"C:\\\\Users\\\\falaq\\\\Desktop\\\\Projets\\\\Test_Automation\\\\frontend\"; npx tsc --noEmit -p tsconfig.app.json; Write-Output \"EXIT_CODE=$LASTEXITCODE\")",
+      "PowerShell(py -0p 2>$null)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"check-ignore exit: $?\")",
+      "Bash(\"../../venv/Scripts/python.exe\" -m pytest -q)",
+      "Bash(curl -s http://127.0.0.1:8000/docs -o /dev/null -w \"backend:%{http_code}\\\\n\")",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match \"python\" } | Select-Object Id, ProcessName, StartTime)"
+    ]
+  }
+}

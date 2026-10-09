@@ -1,0 +1,195 @@
+time=2026-07-28T17:58:06.684+01:00 level=INFO source=routes.go:1947 msg="server config" env="map[CUDA_VISIBLE_DEVICES: GGML_VK_VISIBLE_DEVICES: GPU_DEVICE_ORDINAL: HIP_VISIBLE_DEVICES: HSA_OVERRIDE_GFX_VERSION: HTTPS_PROXY: HTTP_PROXY: LLAMA_ARG_FIT: LLAMA_ARG_FIT_TARGET: NO_PROXY: OLLAMA_CONTEXT_LENGTH:0 OLLAMA_DEBUG:INFO OLLAMA_DEBUG_LOG_REQUESTS:false OLLAMA_EDITOR: OLLAMA_FLASH_ATTENTION:false OLLAMA_GO_TEMPLATE:true OLLAMA_GPU_OVERHEAD:0 OLLAMA_HOST:http://127.0.0.1:11434 OLLAMA_IGPU_ENABLE: OLLAMA_KEEP_ALIVE:5m0s OLLAMA_KV_CACHE_TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5m0s OLLAMA_MAX_LOADED_MODELS:0 OLLAMA_MAX_QUEUE:512 OLLAMA_MAX_TRANSFER_STREAMS:4 OLLAMA_MODELS:C:\\Users\\falaq\\.ollama\\models OLLAMA_NOHISTORY:false OLLAMA_NOPRUNE:false OLLAMA_NO_CLOUD:false OLLAMA_NUM_PARALLEL:1 OLLAMA_ORIGINS:[http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1 https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri://* vscode-webview://* vscode-file://*] OLLAMA_REMOTES:[ollama.com] OLLAMA_SCHED_SPREAD:false OLLAMA_VULKAN:true ROCR_VISIBLE_DEVICES:]"
+time=2026-07-28T17:58:06.737+01:00 level=INFO source=routes.go:1949 msg="Ollama cloud disabled: false"
+time=2026-07-28T17:58:06.748+01:00 level=INFO source=images.go:883 msg="total blobs: 19"
+time=2026-07-28T17:58:06.750+01:00 level=INFO source=images.go:890 msg="total unused blobs removed: 0"
+time=2026-07-28T17:58:06.756+01:00 level=INFO source=routes.go:2004 msg="Listening on 127.0.0.1:11434 (version 0.32.1)"
+time=2026-07-28T17:58:06.759+01:00 level=INFO source=runner.go:60 msg="discovering available GPUs..."
+time=2026-07-28T17:58:06.783+01:00 level=INFO source=model_list_cache.go:112 msg="model list cache hydration complete" models=4 failures=0 elapsed=24.7887ms
+time=2026-07-28T17:58:07.119+01:00 level=INFO source=model_recommendations.go:177 msg="model recommendations cache sleep scheduled" wait=4h28m46.652480825s consecutive_failures=0
+time=2026-07-28T17:58:11.741+01:00 level=INFO source=runner.go:405 msg="dropping integrated GPU; to enable, set OLLAMA_IGPU_ENABLE=1" id=0 library=Vulkan compute=0.0 name=Vulkan0 description="Intel(R) UHD Graphics" pci_id=""
+time=2026-07-28T17:58:13.567+01:00 level=INFO source=types.go:32 msg="inference compute" id=0 filter_id=0 library=CUDA compute=7.5 name=CUDA0 description="NVIDIA GeForce GTX 1650" libdirs=ollama,cuda_v13 driver=13.0 pci_id=0000:01:00.0 type=discrete total="4.0 GiB" available="3.2 GiB"
+time=2026-07-28T17:58:13.568+01:00 level=INFO source=routes.go:2054 msg="vram-based default context" total_vram="4.0 GiB" default_num_ctx=4096
+time=2026-07-28T18:00:48.869+01:00 level=INFO source=sched.go:1158 msg="disabling mmap for llama-server load by default" model=C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff reason=windows_cuda
+time=2026-07-28T18:00:48.869+01:00 level=INFO source=server.go:109 msg="using llama-server for model" model=C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff
+time=2026-07-28T18:00:48.884+01:00 level=INFO source=llama_server.go:433 msg="starting llama-server" cmd="C:\\Users\\falaq\\AppData\\Local\\Programs\\Ollama\\lib\\ollama\\llama-server.exe --model C:\\Users\\falaq\\.ollama\\models\\blobs\\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff --port 56824 --host 127.0.0.1 --no-webui --offline -c 4096 -np 1 --log-verbosity 4 --no-log-prefix --no-log-timestamps --no-jinja --chat-template chatml --no-mmap --flash-attn auto -b 512 -ub 512 --context-shift --keep 4"
+time=2026-07-28T18:00:48.890+01:00 level=INFO source=sched.go:623 msg="system memory" total="15.8 GiB" free="762.0 MiB" free_swap="744.9 MiB"
+time=2026-07-28T18:00:48.891+01:00 level=INFO source=sched.go:630 msg="gpu memory" id=0 library=CUDA available="2.8 GiB" free="3.2 GiB" minimum="457.0 MiB" overhead="0 B"
+time=2026-07-28T18:00:48.891+01:00 level=INFO source=llama_server.go:1001 msg="loading model via llama-server" model=C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff
+time=2026-07-28T18:00:48.891+01:00 level=INFO source=llama_server.go:1248 msg="waiting for llama-server to start responding"
+time=2026-07-28T18:00:48.892+01:00 level=INFO source=llama_server.go:1303 msg="waiting for llama-server to become available" status="llm server error"
+cmn  common_param: common_params_print_info: build 1 (cb295bf59) with Clang 18.1.8 for Windows AMD64
+cmn  common_param: common_params_print_info: verbosity = 4 (adjust with the `-lv N` CLI arg)
+cmn  common_param: device_info:
+cmn  common_param:   - CPU     : Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz (16221 MiB, 606 MiB free)
+cmn  common_param:   - CUDA0   : NVIDIA GeForce GTX 1650 (4095 MiB, 3296 MiB free)
+cmn  common_param: system_info: n_threads = 4 (n_threads_batch = 4) / 8 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | CUDA : ARCHS = 750,800,860,890,1000,1200 | USE_GRAPHS = 1 | PEER_MAX_BATCH_SIZE = 128 | 
+srv          init: using 7 threads for HTTP server
+srv          init: The UI is disabled
+srv          init: Use --ui/--no-ui (or deprecated --webui/--no-webui) to enable/disable
+srv         start: binding port with default address family
+srv    load_model: loading model 'C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff'
+srv    load_model: local path 'C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff'
+cmn  common_init_: fitting params to device memory ...
+cmn  common_init_: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
+common_params_fit_impl: getting device memory data for initial parameters:
+time=2026-07-28T18:00:49.398+01:00 level=INFO source=llama_server.go:1303 msg="waiting for llama-server to become available" status="llm server loading model"
+common_memory_breakdown_print: | memory breakdown [MiB] | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (GTX 1650)   |  4095 = 3296 + (2436 =  1918 +     448 +      70) +       -1637 |
+common_memory_breakdown_print: |   - Host               |                  324 =   308 +       0 +      16                |
+common_params_fit_impl: projected to use 2436 MiB of device memory vs. 3296 MiB of free device memory
+common_params_fit_impl: cannot meet free memory target of 1024 MiB, need to reduce device memory by 163 MiB
+common_params_fit_impl: context size set by user to 4096 -> no change
+common_params_fit_impl: id=0, target=2272 MiB
+common_memory_breakdown_print: | memory breakdown [MiB] | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (GTX 1650)   |  4095 = 3296 + (  84 =     0 +       0 +      84) +         714 |
+common_memory_breakdown_print: |   - Host               |                 2690 =  2226 +     448 +      16                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer= 0, n_part= 0, overflow_type=4, mem=    84 MiB
+common_params_fit_impl: filling dense layers back-to-front:
+common_memory_breakdown_print: | memory breakdown [MiB] | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (GTX 1650)   |  4095 = 3296 + (2436 =  1918 +     448 +      70) +       -1637 |
+common_memory_breakdown_print: |   - Host               |                  324 =   308 +       0 +      16                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=29, n_part= 0, overflow_type=4, mem=  2436 MiB
+common_params_fit_impl: start filling device 0, delta=29
+common_memory_breakdown_print: | memory breakdown [MiB] | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (GTX 1650)   |  4095 = 3296 + (2226 =  1742 +     400 +      84) +       -1427 |
+common_memory_breakdown_print: |   - Host               |                  548 =   484 +      48 +      16                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=26, n_part= 0, overflow_type=4, mem=  2226 MiB
+common_params_fit_impl: set ngl_per_device[0].n_layer=26
+common_memory_breakdown_print: | memory breakdown [MiB] | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (GTX 1650)   |  4095 = 3296 + (2296 =  1796 +     416 +      84) +       -1497 |
+common_memory_breakdown_print: |   - Host               |                  478 =   430 +      32 +      16                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=27, n_part= 0, overflow_type=4, mem=  2296 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=27
+common_params_fit_impl:   - CUDA0 (NVIDIA GeForce GTX 1650): 26 layers,   2226 MiB used,   1069 MiB free
+common_fit_params: successfully fit params to free device memory
+common_fit_params: fitting params to free memory took 0.52 seconds
+llama_model_loader: loaded meta data with 30 key-value pairs and 255 tensors from C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff (version GGUF V3 (latest))
+llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+llama_model_loader: - kv   0:                       general.architecture str              = llama
+llama_model_loader: - kv   1:                               general.type str              = model
+llama_model_loader: - kv   2:                               general.name str              = Llama 3.2 3B Instruct
+llama_model_loader: - kv   3:                           general.finetune str              = Instruct
+llama_model_loader: - kv   4:                           general.basename str              = Llama-3.2
+llama_model_loader: - kv   5:                         general.size_label str              = 3B
+llama_model_loader: - kv   6:                               general.tags arr[str,6]       = ["facebook", "meta", "pytorch", "llam...
+llama_model_loader: - kv   7:                          general.languages arr[str,8]       = ["en", "de", "fr", "it", "pt", "hi", ...
+llama_model_loader: - kv   8:                          llama.block_count u32              = 28
+llama_model_loader: - kv   9:                       llama.context_length u32              = 131072
+llama_model_loader: - kv  10:                     llama.embedding_length u32              = 3072
+llama_model_loader: - kv  11:                  llama.feed_forward_length u32              = 8192
+llama_model_loader: - kv  12:                 llama.attention.head_count u32              = 24
+llama_model_loader: - kv  13:              llama.attention.head_count_kv u32              = 8
+llama_model_loader: - kv  14:                       llama.rope.freq_base f32              = 500000.000000
+llama_model_loader: - kv  15:     llama.attention.layer_norm_rms_epsilon f32              = 0.000010
+llama_model_loader: - kv  16:                 llama.attention.key_length u32              = 128
+llama_model_loader: - kv  17:               llama.attention.value_length u32              = 128
+llama_model_loader: - kv  18:                          general.file_type u32              = 15
+llama_model_loader: - kv  19:                           llama.vocab_size u32              = 128256
+llama_model_loader: - kv  20:                 llama.rope.dimension_count u32              = 128
+llama_model_loader: - kv  21:                       tokenizer.ggml.model str              = gpt2
+llama_model_loader: - kv  22:                         tokenizer.ggml.pre str              = llama-bpe
+llama_model_loader: - kv  23:                      tokenizer.ggml.tokens arr[str,128256]  = ["!", "\"", "#", "$", "%", "&", "'", ...
+llama_model_loader: - kv  24:                  tokenizer.ggml.token_type arr[i32,128256]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+llama_model_loader: - kv  25:                      tokenizer.ggml.merges arr[str,280147]  = ["Ġ Ġ", "Ġ ĠĠĠ", "ĠĠ ĠĠ", "...
+llama_model_loader: - kv  26:                tokenizer.ggml.bos_token_id u32              = 128000
+llama_model_loader: - kv  27:                tokenizer.ggml.eos_token_id u32              = 128009
+llama_model_loader: - kv  28:                    tokenizer.chat_template str              = {{- bos_token }}\n{%- if custom_tools ...
+llama_model_loader: - kv  29:               general.quantization_version u32              = 2
+llama_model_loader: - type  f32:   58 tensors
+llama_model_loader: - type q4_K:  168 tensors
+llama_model_loader: - type q6_K:   29 tensors
+print_info: file format = GGUF V3 (latest)
+print_info: file type   = Q4_K - Medium
+print_info: file size   = 1.87 GiB (5.01 BPW) 
+llama_prepare_model_devices: using device CUDA0 (NVIDIA GeForce GTX 1650) (0000:01:00.0) - 3296 MiB free
+load: 0 unused tokens
+load: printing all EOG tokens:
+load:   - 128001 ('<|end_of_text|>')
+load:   - 128008 ('<|eom_id|>')
+load:   - 128009 ('<|eot_id|>')
+load: special tokens cache size = 256
+load: token to piece cache size = 0.7999 MB
+print_info: arch                  = llama
+print_info: vocab_only            = 0
+print_info: no_alloc              = 0
+print_info: n_ctx_train           = 131072
+print_info: n_embd_inp            = 3072
+print_info: n_embd                = 3072
+print_info: n_embd_out            = 3072
+print_info: n_layer               = 28
+print_info: n_layer_all           = 28
+print_info: n_head                = 24
+print_info: n_head_kv             = 8
+print_info: n_rot                 = 128
+print_info: n_swa                 = 0
+print_info: is_swa_any            = 0
+print_info: n_embd_head_k         = 128
+print_info: n_embd_head_v         = 128
+print_info: n_gqa                 = 3
+print_info: n_embd_k_gqa          = 1024
+print_info: n_embd_v_gqa          = 1024
+print_info: f_norm_eps            = 0.0e+00
+print_info: f_norm_rms_eps        = 1.0e-05
+print_info: f_clamp_kqv           = 0.0e+00
+print_info: f_max_alibi_bias      = 0.0e+00
+print_info: f_logit_scale         = 0.0e+00
+print_info: f_attn_scale          = 0.0e+00
+print_info: f_attn_value_scale    = 0.0000
+print_info: n_ff                  = 8192
+print_info: n_expert              = 0
+print_info: n_expert_used         = 0
+print_info: n_expert_groups       = 0
+print_info: n_group_used          = 0
+print_info: causal attn           = 1
+print_info: pooling type          = -1
+print_info: rope type             = 0
+print_info: rope scaling          = linear
+print_info: freq_base_train       = 500000.0
+print_info: freq_scale_train      = 1
+print_info: n_ctx_orig_yarn       = 131072
+print_info: rope_yarn_log_mul     = 0.0000
+print_info: rope_finetuned        = unknown
+print_info: model type            = 3B
+print_info: model params          = 3.21 B
+print_info: general.name          = Llama 3.2 3B Instruct
+print_info: vocab type            = BPE
+print_info: n_vocab               = 128256
+print_info: n_merges              = 280147
+print_info: BOS token             = 128000 '<|begin_of_text|>'
+print_info: EOS token             = 128009 '<|eot_id|>'
+print_info: EOT token             = 128001 '<|end_of_text|>'
+print_info: EOM token             = 128008 '<|eom_id|>'
+print_info: LF token              = 198 'Ċ'
+print_info: EOG token             = 128001 '<|end_of_text|>'
+print_info: EOG token             = 128008 '<|eom_id|>'
+print_info: EOG token             = 128009 '<|eot_id|>'
+print_info: max token length      = 256
+load_tensors: loading model tensors, this can take a while... (mmap = false, direct_io = false)
+ggml_backend_cpu_buffer_type_alloc_buffer: failed to allocate buffer of size 323205120
+alloc_tensor_range: failed to allocate CPU buffer of size 323205120
+llama_model_load: error loading model: unable to allocate CPU buffer
+llama_model_load_from_file_impl: failed to load model
+cmn  common_init_: failed to load model 'C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff'
+srv    load_model: failed to load model, 'C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff'
+srv    operator(): operator(): cleaning up before exit...
+srv  llama_server: exiting due to model loading error
+time=2026-07-28T18:00:52.923+01:00 level=INFO source=llama_server.go:1303 msg="waiting for llama-server to become available" status="llm server error"
+time=2026-07-28T18:00:52.923+01:00 level=INFO source=sched.go:651 msg="Load failed" model=C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff error="llama-server reported out-of-memory during startup: ggml_backend_cpu_buffer_type_alloc_buffer: failed to allocate buffer of size 323205120\nalloc_tensor_range: failed to allocate CPU buffer of size 323205120\nerror loading model: unable to allocate CPU buffer"
+time=2026-07-28T18:00:52.989+01:00 level=ERROR source=llama_server.go:976 msg="llama-server terminated" error="exit status 1" exit=1
+time=2026-07-28T18:02:37.658+01:00 level=WARN source=runner.go:584 msg="llama-server GPU discovery watchdog timed out" OLLAMA_LIBRARY_PATH="[C:\\Users\\falaq\\AppData\\Local\\Programs\\Ollama\\lib\\ollama C:\\Users\\falaq\\AppData\\Local\\Programs\\Ollama\\lib\\ollama\\cuda_v13]" extra_envs=map[CUDA_VISIBLE_DEVICES:0] error="context deadline exceeded"
+time=2026-07-28T18:02:37.659+01:00 level=INFO source=runner.go:522 msg="failure during llama-server GPU discovery" OLLAMA_LIBRARY_PATH="[C:\\Users\\falaq\\AppData\\Local\\Programs\\Ollama\\lib\\ollama C:\\Users\\falaq\\AppData\\Local\\Programs\\Ollama\\lib\\ollama\\cuda_v13]" extra_envs=map[CUDA_VISIBLE_DEVICES:0] error="context deadline exceeded" detail=""
+time=2026-07-28T18:02:37.659+01:00 level=WARN source=runner.go:364 msg="unable to refresh free memory, using old values"
+time=2026-07-28T18:02:37.697+01:00 level=WARN source=llama_server.go:130 msg="llama-server discovery: timed out waiting for server startup" error="context deadline exceeded" libDirs="[C:\\Users\\falaq\\AppData\\Local\\Programs\\Ollama\\lib\\ollama C:\\Users\\falaq\\AppData\\Local\\Programs\\Ollama\\lib\\ollama\\cuda_v13]" lines_captured=0
+time=2026-07-28T18:02:37.754+01:00 level=INFO source=sched.go:1158 msg="disabling mmap for llama-server load by default" model=C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff reason=windows_cuda
+time=2026-07-28T18:02:37.754+01:00 level=INFO source=server.go:109 msg="using llama-server for model" model=C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff
+time=2026-07-28T18:02:37.760+01:00 level=INFO source=llama_server.go:433 msg="starting llama-server" cmd="C:\\Users\\falaq\\AppData\\Local\\Programs\\Ollama\\lib\\ollama\\llama-server.exe --model C:\\Users\\falaq\\.ollama\\models\\blobs\\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff --port 65275 --host 127.0.0.1 --no-webui --offline -c 4096 -np 1 --log-verbosity 4 --no-log-prefix --no-log-timestamps --no-jinja --chat-template chatml --no-mmap --flash-attn auto -b 512 -ub 512 --context-shift --keep 4"
+time=2026-07-28T18:02:37.768+01:00 level=INFO source=sched.go:623 msg="system memory" total="15.8 GiB" free="1.3 GiB" free_swap="24.6 MiB"
+time=2026-07-28T18:02:37.768+01:00 level=INFO source=sched.go:630 msg="gpu memory" id=0 library=CUDA available="2.8 GiB" free="3.2 GiB" minimum="457.0 MiB" overhead="0 B"
+time=2026-07-28T18:02:37.768+01:00 level=INFO source=llama_server.go:1001 msg="loading model via llama-server" model=C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff
+time=2026-07-28T18:02:37.768+01:00 level=INFO source=llama_server.go:1248 msg="waiting for llama-server to start responding"
+time=2026-07-28T18:02:37.769+01:00 level=INFO source=llama_server.go:1303 msg="waiting for llama-server to become available" status="llm server error"
+time=2026-07-28T18:02:42.027+01:00 level=INFO source=sched.go:651 msg="Load failed" model=C:\Users\falaq\.ollama\models\blobs\sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff error="llama-server process has terminated: exit status 0xc000012d: {Out of Virtual Memory}\r\nYour system is low on virtual memory. To ensure that Windows runs properly, increase the size of your virtual memory paging file. For more information, see Help."

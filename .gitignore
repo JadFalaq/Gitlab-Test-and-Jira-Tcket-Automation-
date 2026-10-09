@@ -1,42 +1,20 @@
-# --- Environnement / secrets (jamais committés) ---
-.env
-.env.*
-!.env.example
-!.env.*.example
+# Uniquement ce qui se régénère à l'identique sur n'importe quel poste.
+# Tout le reste (.env, bases SQLite, pièces jointes, logs) est volontairement
+# versionné tant que le dépôt est privé : voir REPRISE.md avant de le rendre public.
 
-# --- Python ---
+# --- Dépendances (npm ci / pip install) ---
+node_modules/
+venv/
+.venv/
+
+# --- Builds et caches ---
+dist/
 __pycache__/
 *.py[cod]
-.venv/
-venv/
 .pytest_cache/
 .coverage
 htmlcov/
 
-# --- Bases SQLite locales et leurs sauvegardes (données réelles possibles) ---
-*.db
-*.db.*
-*.db-journal
-*.db-wal
-*.db-shm
-*.sqlite
-*.sqlite3
-
-# --- Pièces jointes uploadées (jamais committées) ---
-backend/uploads/
-
-# --- Node / frontend ---
-node_modules/
-dist/
-*.local
-
-# --- Outillage local ---
-.claude/
-.claude.new/
-
-# --- Logs ---
-*.log
-
-# --- OS / éditeurs ---
+# --- OS ---
 .DS_Store
 Thumbs.db

@@ -61,8 +61,9 @@
 
 ### 3.1 Fuite de données (à faire en premier)
 - [x] `git rm` des `test_automation.db.bak-pre-auth` et `.bak-pre-chat`
-- [ ] Purge de l'historique avec `git filter-repo`, puis force-push — **en attente de ton accord** (réécrit l'historique distant)
-- [ ] Considérer l'email et les demandes comme exposés si le dépôt a été public, prévenir la personne concernée — **à faire par toi** ; révoquer aussi le token GitLab présent dans `backend/.env`
+- [x] Purge de l'historique avec `git filter-repo`, puis force-push — fait le 09/10/2026, vérifié sur un clone neuf ; sauvegarde dans `Projets/depot-backup.git`
+- [ ] Considérer l'email et les demandes comme exposés si le dépôt a été public, prévenir la personne concernée — **à faire par toi** (dépôt apparemment privé)
+- [x] Révoquer le token GitLab présent dans `backend/.env` — révoqué via l'API (`personal_access_tokens/self`), lignes retirées du `.env`
 - [x] Réécrire `.gitignore` (ajouter `*.db.bak*`, supprimer les doublons, ne plus ignorer `.env.example`)
 - [x] Ajouter un scan de secrets en pre-commit (gitleaks) — `.pre-commit-config.yaml` ; activer avec `pre-commit install`
 
