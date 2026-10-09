@@ -1,5 +1,5 @@
 # =============================================================================
-# Backend Python dependencies
+# Backend Python dependencies (production)
 # =============================================================================
 
 # --- Web Framework ---
@@ -13,14 +13,12 @@ pydantic-settings>=2.0.0
 # --- HTTP Client (for Ollama, Jira, GitLab API calls) ---
 httpx>=0.24.0
 
-# --- Database (prototype: SQLite via SQLAlchemy) ---
-sqlalchemy>=2.0.0
+# --- Database (SQLAlchemy async : SQLite en dev local, PostgreSQL en conteneur) ---
+sqlalchemy[asyncio]>=2.0.0   # [asyncio] : greenlet, plus installé implicitement depuis SQLAlchemy 2.1
 aiosqlite>=0.19.0
+asyncpg>=0.29.0
 
-# --- Testing ---
-pytest>=7.0.0
-pytest-asyncio>=0.21.0
-pytest-cov>=4.0.0
+# Outils de test : voir requirements-dev.txt (jamais installés dans l'image Docker)
 
 # --- Utilities ---
 python-dotenv>=1.0.0
@@ -48,4 +46,4 @@ openpyxl>=3.1.0
 # --- Authentification SSO (module 8, OIDC générique) ---
 # Signature/vérification du cookie de session applicatif (pas les tokens du
 # fournisseur SSO lui-même) — cf. app/services/auth_service.py.
-PyJWT>=2.8.0
+PyJWT[crypto]>=2.8.0   # [crypto] : vérification RS256 des id_token OIDC

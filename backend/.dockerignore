@@ -1,0 +1,17 @@
+# Jamais dans l'image : secrets, données locales, caches, tests.
+.env
+.env.*
+!.env.example
+*.db
+*.db.*
+uploads/
+*.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+docs/
+Dockerfile
+.dockerignore

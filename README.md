@@ -1,10 +1,10 @@
-# Gitlab & Jira Ticket Automation
+# Jira Ticket Automation
 
 Un outil qui lit une demande écrite en langage normal (« je veux ajouter un paiement par QR code ») et qui en ressort, tout seul :
 
 1. une fiche propre qui décrit le besoin (titre, description, critères...),
 2. des scénarios de test au format Gherkin (`Given / When / Then`) + des user stories,
-3. de vrais tickets créés sur Jira et/ou GitLab.
+3. de vrais tickets créés sur Jira.
 
 À chaque étape, un humain doit relire et cliquer sur **Valider**, **Rejeter** ou **Régénérer** — l'outil ne publie jamais rien tout seul.
 
@@ -27,7 +27,7 @@ Toi : "Je veux ajouter un paiement par QR code"
   🧪 Scénarios de test Gherkin + user stories ──► tu valides / tu régénères
         │
         ▼
-  🎫 Tickets créés automatiquement sur Jira et GitLab
+  🎫 Tickets créés automatiquement sur Jira
         │
         ▼
   📡 Suivi en direct du statut des tickets + tableau de statistiques
@@ -52,7 +52,7 @@ C'est un serveur qui fait tout le travail. Il est lui-même découpé en petites
 | `app/schemas/` | Les "moules" qui décrivent à quoi doit ressembler chaque donnée (une fiche de besoin, un scénario de test, un ticket...) — ça évite que l'IA renvoie n'importe quoi. |
 | `app/services/` | Le chef d'orchestre : il fait avancer une demande étape par étape (brouillon → analyse → tests → tickets), et sait quoi faire si une étape rate. |
 | `app/routers/` | La "réception" : les adresses (URLs) que le site web appelle pour parler au serveur (créer une demande, valider une étape, voir les tickets...). |
-| `app/integrations/` | Les branchements vers Jira et GitLab (et une version "factice" utilisée pour les tests, qui ne contacte jamais les vrais sites). |
+| `app/integrations/` | Le branchement vers Jira. Sans configuration Jira, aucun ticket n'est créé (jamais de faux ticket). |
 | `app/models/` | Comment tout ça est rangé dans la base de données. |
 | `docs/` | Un carnet de bord détaillé, un fichier par grande fonctionnalité : comment ça marche, pourquoi ce choix technique, ce qui a été testé en vrai, et ce qui reste fragile. |
 | `scripts/` | Des petits outils à lancer à la main, par exemple pour "nourrir" la mémoire de l'IA avec d'anciens tickets/documents. |
@@ -77,7 +77,7 @@ C'est un serveur qui fait tout le travail. Il est lui-même découpé en petites
 4. **Tu valides** cette fiche (ou tu demandes une nouvelle version).
 5. **Génération des tests** : l'IA écrit des user stories et des scénarios Gherkin (cas normal, cas d'erreur, cas limite), vérifiés avec un vrai outil de validation Gherkin — jamais de format inventé.
 6. **Tu valides** ces tests.
-7. **Création des tickets** : un ticket Jira et/ou GitLab est créé automatiquement pour chaque user story, avec les scénarios de test dedans.
+7. **Création des tickets** : un ticket Jira est créé automatiquement pour chaque user story, avec les scénarios de test dedans.
 8. **Suivi en direct** : un tableau affiche l'évolution des tickets sans avoir à recharger la page.
 9. **Mémoire qui s'améliore avec le temps** : chaque fois que tu valides quelque chose, ça sert d'exemple pour les prochaines demandes similaires (l'IA s'améliore avec l'usage, sans jamais copier le contenu d'une ancienne demande dans une nouvelle).
 
@@ -89,30 +89,54 @@ C'est un serveur qui fait tout le travail. Il est lui-même découpé en petites
 - Une IA qui tourne entièrement en local (aucune donnée envoyée à une API cloud).
 - Une couche qui anonymise automatiquement les données personnelles avant tout envoi à l'IA.
 - La possibilité d'uploader des documents (PDF, Word, Excel, images...) pour enrichir une demande.
-- La création réelle de tickets sur Jira et GitLab (pas juste une simulation).
+- La création réelle de tickets sur Jira (pas juste une simulation).
 - Un système de connexion par compte, pour que chaque personne ne voie que ses propres demandes.
 - Une suite de centaines de tests automatiques qui vérifient que rien ne casse à chaque changement.
 
-## Comment le lancer chez toi
+## Comment le lancer
 
-### Prérequis
-- Python 3.11+
-- Node.js 18+
-- [Ollama](https://ollama.com) installé, avec un modèle téléchargé (ex : `ollama pull llama3.2:3b`)
+### Avec Docker (recommandé)
 
-### Backend
+Prérequis : Docker, et [Ollama](https://ollama.com) sur la machine avec un modèle téléchargé (ex : `ollama pull llama3.2:3b`).
+
 ```bash
-cd backend
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload
+docker compose up --build
 ```
 
-### Frontend
+Puis ouvrir http://localhost:8080. Sans fichier `.env`, l'application démarre en mode développement : connexion sans SSO, Jira optionnel (sans Jira, la création de tickets échoue avec un message clair, aucun faux ticket).
+
+Services : `proxy` (Nginx : interface + `/api`), `backend` (FastAPI), `postgres`, `redis`. Ollama en conteneur : `docker compose --profile ollama up`.
+
+**Instance partagée (production)** : copier `.env.production.example` en `.env` et le compléter.
+
+> **Pas de production à moitié configurée.** Avec `APP_ENV=prod`, le backend **refuse de démarrer** et liste tout ce qui manque : secret de session encore à sa valeur de dev (ou trop court), provider LLM non supporté, configuration Jira ou SSO absente. Aucun faux LLM ni faux ticket n'existe dans l'application, et la connexion sans SSO y est impossible. Ce comportement est couvert par `backend/tests/test_config.py` :
+>
+> ```
+> $ docker run --rm -e APP_ENV=prod jira-ticket-automation-backend
+> Configuration de production incomplète :
+> - AUTH_SESSION_SECRET a encore sa valeur de développement
+> - JIRA_BASE_URL manquant (Jira est obligatoire en production)
+> - AUTH_OIDC_ISSUER manquant (le SSO est obligatoire en production)
+> ...
+> ```
+
+### Sans Docker (développement)
+
+Prérequis : Python 3.11+, Node.js 20+, Ollama.
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+python -m spacy download fr_core_news_lg
+cp .env.example .env
+uvicorn app.main:app --reload
+pytest                       # tests backend
+```
+
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                  # http://localhost:5173
 ```
 
 ## Note sur les données

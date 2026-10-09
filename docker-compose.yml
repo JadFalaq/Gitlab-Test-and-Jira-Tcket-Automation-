@@ -1,0 +1,84 @@
+# Démarrage : docker compose up --build   ->  http://localhost:8080
+#
+# Sans fichier .env, l'application démarre en APP_ENV=dev (connexion sans
+# SSO, Jira optionnel). Pour une vraie instance : copier
+# .env.production.example en .env et le compléter (APP_ENV=prod refuse de
+# démarrer si la configuration est incomplète).
+#
+# LLM : par défaut, l'Ollama de la machine hôte (host.docker.internal:11434).
+# Pour lancer aussi Ollama en conteneur : docker compose --profile ollama up
+# et OLLAMA_BASE_URL=http://ollama:11434 dans .env.
+
+name: jira-ticket-automation
+
+x-public-url: &public_url ${PUBLIC_URL:-http://localhost:8080}
+
+services:
+  proxy:
+    build: ./frontend
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@postgres:5432/${POSTGRES_DB:-app}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      FRONTEND_URL: *public_url
+      AUTH_REDIRECT_URI: ${PUBLIC_URL:-http://localhost:8080}/api/auth/callback
+      CORS_ORIGINS: '["${PUBLIC_URL:-http://localhost:8080}"]'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # File de tâches du futur worker arq (semaine 3 du plan) ; pas encore utilisée par le backend.
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Optionnel : Ollama en conteneur (GPU NVIDIA si disponible).
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:
+  ollama:
