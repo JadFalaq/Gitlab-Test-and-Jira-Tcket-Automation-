@@ -187,14 +187,21 @@ function App() {
 
   // Même principe pour les pièces jointes déjà envoyées (session en cours) —
   // rendu depuis l'URL servie par le backend plutôt que depuis un File local.
+  // Dépend d'une clé texte stable (id de session + ids des PDF) : le polling
+  // recrée l'objet `session` toutes les 2 s, ce qui relançait sinon le rendu
+  // de toutes les miniatures à chaque poll.
+  const sessionId = session?.id;
+  const pdfAttachmentIds = (session?.attachments ?? [])
+    .filter((attachment) => isPdf(attachment.content_type))
+    .map((attachment) => attachment.id)
+    .join(",");
   useEffect(() => {
-    if (!session) return;
+    if (!sessionId || !pdfAttachmentIds) return;
     let cancelled = false;
-    session.attachments.forEach((attachment) => {
-      if (!isPdf(attachment.content_type)) return;
-      renderPdfThumbnail(api.attachmentFileUrl(session.id, attachment.id))
+    pdfAttachmentIds.split(",").forEach((attachmentId) => {
+      renderPdfThumbnail(api.attachmentFileUrl(sessionId, attachmentId))
         .then((dataUrl) => {
-          if (!cancelled) setAttachmentPdfThumbnails((prev) => ({ ...prev, [attachment.id]: dataUrl }));
+          if (!cancelled) setAttachmentPdfThumbnails((prev) => ({ ...prev, [attachmentId]: dataUrl }));
         })
         .catch(() => {
           /* pas de miniature : le badge d'extension prend le relais */
@@ -203,7 +210,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [session?.id, session?.attachments]);
+  }, [sessionId, pdfAttachmentIds]);
 
   const refreshHistory = async () => {
     try {
@@ -629,6 +636,7 @@ function App() {
                       )}
                       <TestDesignPanel
                         output={session.test_design_output}
+                        featureFiles={session.gherkin_feature_files}
                         busy={busy}
                         onAccept={() => runAction(() => api.acceptTests(session.id))}
                         onReject={() => runAction(() => api.rejectTests(session.id))}
@@ -671,8 +679,8 @@ function App() {
                           onRefreshTickets={() => runAction(() => api.refreshSessionTickets(session.id))}
                         />
                         <div className="space-y-3">
-                          {session.test_design_output.gherkin_features.map((feature) => (
-                            <GherkinFeatureView key={feature.feature_name} feature={feature} />
+                          {session.gherkin_feature_files.map((text, index) => (
+                            <GherkinFeatureView key={index} text={text} />
                           ))}
                         </div>
                       </div>

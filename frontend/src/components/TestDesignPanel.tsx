@@ -4,6 +4,7 @@ import { ReviewActions } from "./ReviewActions";
 
 interface TestDesignPanelProps {
   output: TestDesignOutput;
+  featureFiles: string[];
   busy: boolean;
   onAccept: () => void;
   onReject: () => void;
@@ -12,6 +13,7 @@ interface TestDesignPanelProps {
 
 export function TestDesignPanel({
   output,
+  featureFiles,
   busy,
   onAccept,
   onReject,
@@ -44,8 +46,8 @@ export function TestDesignPanel({
       <div>
         <h2 className="text-lg font-semibold text-slate-50">Scénarios Gherkin</h2>
         <div className="mt-2 space-y-3">
-          {output.gherkin_features.map((feature) => (
-            <GherkinFeatureView key={feature.feature_name} feature={feature} />
+          {featureFiles.map((text, index) => (
+            <GherkinFeatureView key={index} text={text} />
           ))}
         </div>
       </div>

@@ -15,9 +15,7 @@ Design decisions:
 - "reject" est terminal — pour réessayer, l'ingénieur crée une nouvelle
   session plutôt que de faire revivre une session rejetée.
 - "tickets_created" (module 5) est atteint depuis "validated" ou
-  "ticket_creation_failed" — jamais terminal au sens strict : on peut relancer
-  la création de tickets pour ajouter d'autres providers (ex: Jira réussi,
-  puis GitLab configuré plus tard).
+  "ticket_creation_failed" (retry après un échec Jira).
 - Module 9 (22/07/2026) : "chatting" est le TOUT premier statut d'une session
   (avant "analyzing") — une phase de clarification conversationnelle libre
   avec le LLM (cf. app/agents/chat_agent.py), pas de génération structurée
@@ -33,7 +31,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+
+from app.agents.gherkin_renderer import render_gherkin_feature
 
 from app.schemas.attachment import AttachmentResponse
 from app.schemas.requirement import RequirementAnalysis
@@ -127,6 +127,16 @@ class SessionResponse(BaseModel):
         default_factory=list,
         description="Photos/documents joints à la création (module 2, extension) — traités en tâche de fond",
     )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def gherkin_feature_files(self) -> list[str]:
+        """Texte .feature de chaque feature de test_design_output, dans le même
+        ordre. Rendu par le backend (même fonction que pour les tickets Jira
+        et la validation Cucumber) : le frontend l'affiche tel quel."""
+        if self.test_design_output is None:
+            return []
+        return [render_gherkin_feature(feature) for feature in self.test_design_output.gherkin_features]
 
     model_config = {"from_attributes": True}
 
