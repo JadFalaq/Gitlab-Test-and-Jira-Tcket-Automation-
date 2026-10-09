@@ -10,7 +10,8 @@ import pytest
 
 from app.agents.chat_agent import ChatAgent, ChatAgentError
 from app.agents.dlp_masking import BaseMaskingProvider
-from app.agents.llm_layer import BaseLLMProvider, LLMTimeoutError, MockProvider
+from app.agents.llm_layer import BaseLLMProvider, LLMTimeoutError
+from tests.fakes.llm import FakeLLMProvider
 from app.schemas.llm import LLMRequest, LLMResponse, LLMUsage
 from app.schemas.session import ChatMessage
 
@@ -127,9 +128,9 @@ class TestChatAgentReply:
 
     @pytest.mark.asyncio
     async def test_works_with_mock_provider_default_response(self):
-        """Sanity check bout en bout avec le MockProvider standard du projet
+        """Sanity check bout en bout avec le FakeLLMProvider standard du projet
         (pas de custom_responses -> réponse par défaut)."""
-        agent = ChatAgent(llm_provider=MockProvider())
+        agent = ChatAgent(llm_provider=FakeLLMProvider())
 
         reply = await agent.reply(_history(("user", "[FICTIF] bonjour")))
 

@@ -1,22 +1,19 @@
 """
-Module 5 — Intégration Jira/GitLab : orchestration de la création de tickets
+Module 5 — Intégration Jira : orchestration de la création de tickets
 
 Transforme le `TestDesignOutput` validé d'une session (module 4) en tickets
-créés chez un ou plusieurs providers externes (Jira, GitLab), puis rafraîchit
-leur statut à la demande (module 6 — suivi temps réel).
+Jira, puis rafraîchit leur statut à la demande (module 6 — suivi temps réel).
 
 Design decisions:
-- Un ticket par user story (pas de granularité plus fine en prototype). La
-  description embarque les critères d'acceptation de la story + le rendu
-  Gherkin de TOUTES les features de la session : le schéma module 3
-  (UserStory / GherkinFeature) ne les relie pas explicitement par ID, donc
-  on ne peut pas garantir un mapping story -> scénario précis sans modifier
-  un module déjà "terminé et testé". Documenté comme simplification connue
-  (voir docs/module_5_jira_gitlab_integration.md).
-- La création est best-effort par provider : un échec sur Jira n'empêche pas
-  la tentative sur GitLab. `TicketCreationResult.errors` accumule les
-  messages, la session passe en 'ticket_creation_failed' seulement si AUCUN
-  ticket n'a pu être créé.
+- Un ticket par user story. La description embarque les critères
+  d'acceptation de la story + le rendu Gherkin de TOUTES les features de la
+  session : le schéma module 3 (UserStory / GherkinFeature) ne les relie pas
+  explicitement par ID (voir docs/module_5_jira_integration.md).
+- Best-effort par story : l'échec d'une story n'empêche pas la création des
+  suivantes. `TicketCreationResult.errors` accumule les messages, la session
+  passe en 'ticket_creation_failed' seulement si AUCUN ticket n'a été créé.
+- Jira non configuré : aucune création, une erreur explicite est renvoyée
+  (jamais de faux ticket).
 - `refresh_ticket_statuses` fonctionne à partir des tickets déjà stockés en
   DB (session.tickets), pas d'un nouvel appel de création.
 """
@@ -28,7 +25,7 @@ from datetime import datetime, timezone
 
 from app.agents.gherkin_renderer import render_gherkin_feature
 from app.integrations.base import TicketProviderError
-from app.integrations.factory import get_ticket_provider_by_name
+from app.integrations import factory
 from app.schemas.test_design import TestDesignOutput
 from app.schemas.ticket import CreatedTicket, TicketCreationResult, TicketDraft
 
@@ -65,40 +62,31 @@ def _build_drafts(test_design: TestDesignOutput) -> list[TicketDraft]:
     return drafts
 
 
-async def create_tickets(
-    session_id: str,
-    test_design: TestDesignOutput,
-    providers: list[str],
-) -> TicketCreationResult:
+async def create_tickets(session_id: str, test_design: TestDesignOutput) -> TicketCreationResult:
     """
-    Crée un ticket par user story sur chaque provider demandé.
+    Crée un ticket Jira par user story.
 
     Args:
         session_id: id de la session source (traçabilité, cf. CreatedTicket.session_id)
         test_design: sortie validée du module 3/4
-        providers: sous-ensemble de ["jira", "gitlab"] à utiliser
 
     Returns:
-        TicketCreationResult (tickets créés + erreurs par provider, best-effort)
+        TicketCreationResult (tickets créés + erreurs, best-effort par story)
     """
-    drafts = _build_drafts(test_design)
+    try:
+        provider = factory.get_ticket_provider()
+    except TicketProviderError as exc:
+        logger.warning("ticket_service: %s", exc)
+        return TicketCreationResult(errors=[str(exc)])
+
     tickets: list[CreatedTicket] = []
     errors: list[str] = []
-
-    for provider_name in providers:
+    for draft in _build_drafts(test_design):
         try:
-            provider = get_ticket_provider_by_name(provider_name)
-        except ValueError as exc:
+            tickets.append(await provider.create_ticket(draft, session_id=session_id))
+        except TicketProviderError as exc:
+            logger.warning("ticket_service: échec création ticket '%s': %s", draft.title, exc)
             errors.append(str(exc))
-            continue
-
-        for draft in drafts:
-            try:
-                ticket = await provider.create_ticket(draft, session_id=session_id)
-                tickets.append(ticket)
-            except TicketProviderError as exc:
-                logger.warning("ticket_service: échec création ticket %s: %s", provider_name, exc)
-                errors.append(str(exc))
 
     return TicketCreationResult(tickets=tickets, errors=errors)
 
@@ -111,11 +99,16 @@ async def refresh_ticket_statuses(tickets: list[dict]) -> list[dict]:
     dernier statut connu (pas d'exception propagée, cf. module 6 — le suivi
     ne doit jamais bloquer l'UI sur une erreur réseau ponctuelle).
     """
+    try:
+        provider = factory.get_ticket_provider()
+    except TicketProviderError as exc:
+        logger.warning("ticket_service: rafraîchissement impossible: %s", exc)
+        return list(tickets)
+
     updated: list[dict] = []
     for raw in tickets:
         ticket = CreatedTicket(**raw)
         try:
-            provider = get_ticket_provider_by_name(ticket.provider)
             status = await provider.get_ticket_status(ticket.external_id)
             ticket = ticket.model_copy(update={"status": status, "last_synced_at": datetime.now(timezone.utc)})
         except TicketProviderError as exc:

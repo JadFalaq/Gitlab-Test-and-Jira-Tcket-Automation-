@@ -37,11 +37,6 @@ class PriorityBreakdown(BaseModel):
     count: int
 
 
-class TicketProviderBreakdown(BaseModel):
-    provider: str
-    count: int
-
-
 class AnalyticsSummary(BaseModel):
     """Vue d'ensemble du pipeline — sert le tableau de bord analytics (frontend)."""
 
@@ -68,7 +63,6 @@ class AnalyticsSummary(BaseModel):
     )
 
     total_tickets_created: int = 0
-    tickets_by_provider: list[TicketProviderBreakdown] = Field(default_factory=list)
 
     average_pipeline_duration_seconds: Optional[float] = Field(
         default=None,
@@ -80,6 +74,5 @@ __all__ = [
     "StatusBreakdown",
     "TypeBreakdown",
     "PriorityBreakdown",
-    "TicketProviderBreakdown",
     "AnalyticsSummary",
 ]

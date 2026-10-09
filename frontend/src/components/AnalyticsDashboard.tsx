@@ -126,10 +126,6 @@ export function AnalyticsDashboard() {
           title="Sessions par priorité"
           items={summary.sessions_by_priority.map((b) => ({ label: b.priority, count: b.count }))}
         />
-        <BarBreakdown
-          title="Tickets par provider"
-          items={summary.tickets_by_provider.map((b) => ({ label: b.provider, count: b.count }))}
-        />
       </div>
 
       <div className="rounded-md border border-slate-800 bg-slate-900/40 p-3 text-xs text-slate-500">

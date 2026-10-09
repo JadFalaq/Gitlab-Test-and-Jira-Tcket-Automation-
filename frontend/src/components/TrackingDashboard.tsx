@@ -6,14 +6,6 @@ const STATUS_BADGE: Record<string, string> = {
   "To Do": "bg-slate-800 text-slate-400",
   "In Progress": "bg-amber-500/10 text-amber-300",
   Done: "bg-emerald-500/10 text-emerald-300",
-  opened: "bg-slate-800 text-slate-400",
-  closed: "bg-emerald-500/10 text-emerald-300",
-};
-
-const PROVIDER_LABEL: Record<string, string> = {
-  jira: "Jira",
-  gitlab: "GitLab",
-  mock: "Mock",
 };
 
 function formatTime(iso: string): string {
@@ -92,7 +84,7 @@ export function TrackingDashboard() {
         </button>
       </div>
       <p className="text-sm text-slate-500">
-        Statuts des tickets Jira/GitLab créés, rafraîchis automatiquement toutes les ~15s.
+        Statuts des tickets Jira créés, rafraîchis automatiquement toutes les ~15s.
       </p>
 
       {tickets.length === 0 ? (
@@ -104,7 +96,6 @@ export function TrackingDashboard() {
               <tr>
                 <th className="px-4 py-2">Session</th>
                 <th className="px-4 py-2">Ticket</th>
-                <th className="px-4 py-2">Provider</th>
                 <th className="px-4 py-2">Statut</th>
                 <th className="px-4 py-2">Dernière sync</th>
                 <th className="px-4 py-2" />
@@ -112,12 +103,11 @@ export function TrackingDashboard() {
             </thead>
             <tbody className="divide-y divide-slate-800">
               {tickets.map((ticket) => (
-                <tr key={`${ticket.provider}-${ticket.external_id}`}>
+                <tr key={ticket.external_id}>
                   <td className="max-w-[220px] truncate px-4 py-2 text-slate-400">{ticket.session_title}</td>
                   <td className="px-4 py-2 text-slate-100">
                     {ticket.key} — {ticket.title}
                   </td>
-                  <td className="px-4 py-2 text-slate-400">{PROVIDER_LABEL[ticket.provider] ?? ticket.provider}</td>
                   <td className="px-4 py-2">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs ${

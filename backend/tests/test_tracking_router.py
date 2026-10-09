@@ -2,7 +2,7 @@
 Tests d'intégration — Module 6 : routes HTTP de suivi (app/routers/tracking.py)
 
 Vérifie /api/tracking/tickets (snapshot DB) et /api/tracking/sync (rafraîchit
-via les providers — MockTicketProvider ici, pas d'appel réseau). Le flux SSE
+via Jira — FakeJiraProvider ici, pas d'appel réseau). Le flux SSE
 (/api/tracking/stream) n'est pas testé ici en boucle infinie ; sa logique de
 snapshot est déjà couverte par tracking_service (mêmes fonctions).
 
@@ -16,12 +16,11 @@ from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
 
-from app.agents.llm_layer import MockProvider
+from tests.fakes.llm import FakeLLMProvider
 from app.agents.requirement_analyzer import RequirementAnalyzerAgent
 from app.agents.test_design_agent import TestDesignAgent
 from app.database import get_db, get_session_factory
 from app.dependencies import get_current_user, get_requirement_analyzer, get_test_design_agent
-from app.integrations.mock_provider import _reset_mock_store_for_tests
 from app.main import app
 from app.models.session import UserModel
 from tests.test_session_service import (
@@ -31,13 +30,6 @@ from tests.test_session_service import (
 )
 
 _FAKE_USER = UserModel(id="fictional-user-id", email="test@example.com", display_name="Test User")
-
-
-@pytest.fixture(autouse=True)
-def _reset_mock_store():
-    _reset_mock_store_for_tests()
-    yield
-    _reset_mock_store_for_tests()
 
 
 @pytest_asyncio.fixture
@@ -53,10 +45,10 @@ async def client(db_sessionmaker):
     # silencieuse côté tâche de fond, 500 en cascade.
     app.dependency_overrides[get_session_factory] = lambda: db_sessionmaker
     app.dependency_overrides[get_requirement_analyzer] = lambda: RequirementAnalyzerAgent(
-        llm_provider=MockProvider(custom_responses={"paiement": VALID_REQUIREMENT_JSON})
+        llm_provider=FakeLLMProvider(custom_responses={"paiement": VALID_REQUIREMENT_JSON})
     )
     app.dependency_overrides[get_test_design_agent] = lambda: TestDesignAgent(
-        llm_provider=MockProvider(custom_responses={"paiement": VALID_TEST_DESIGN_JSON})
+        llm_provider=FakeLLMProvider(custom_responses={"paiement": VALID_TEST_DESIGN_JSON})
     )
     app.dependency_overrides[get_current_user] = lambda: _FAKE_USER
 
@@ -75,7 +67,7 @@ async def _create_session_with_tickets(client: AsyncClient) -> str:
     await client.post(f"/api/sessions/{session_id}/requirement/accept")
     await client.post(f"/api/sessions/{session_id}/tests/accept")
     tickets_resp = await client.post(
-        f"/api/sessions/{session_id}/tickets/create", json={"providers": ["jira"]}
+        f"/api/sessions/{session_id}/tickets/create"
     )
     assert tickets_resp.json()["status"] == "tickets_created"
     return session_id

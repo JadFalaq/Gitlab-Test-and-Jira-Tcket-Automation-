@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { UserResponse } from "../types";
+import type { AuthConfig, UserResponse } from "../types";
 
 interface LoginScreenProps {
   error: string | null;
@@ -8,9 +8,9 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ error, onDevLogin }: LoginScreenProps) {
-  // undefined tant qu'on ne sait pas encore si le SSO est configuré côté
-  // backend — évite d'afficher puis de faire disparaître le bouton SSO.
-  const [ssoConfigured, setSsoConfigured] = useState<boolean | undefined>(undefined);
+  // undefined tant qu'on ne connaît pas encore la config d'auth du backend —
+  // évite d'afficher puis de faire disparaître le bouton SSO.
+  const [config, setConfig] = useState<AuthConfig | undefined>(undefined);
   const [email, setEmail] = useState("");
   const [devError, setDevError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -18,8 +18,8 @@ export function LoginScreen({ error, onDevLogin }: LoginScreenProps) {
   useEffect(() => {
     api
       .authConfig()
-      .then((config) => setSsoConfigured(config.sso_configured))
-      .catch(() => setSsoConfigured(false)); // best-effort : par défaut, propose la connexion de dev
+      .then(setConfig)
+      .catch(() => setConfig({ sso_configured: false, dev_login_enabled: false }));
   }, []);
 
   const handleDevLogin = async (event: React.FormEvent) => {
@@ -33,7 +33,7 @@ export function LoginScreen({ error, onDevLogin }: LoginScreenProps) {
       setDevError(
         err instanceof Error
           ? err.message
-          : "Connexion de développement indisponible (SSO probablement déjà configuré)."
+          : "Connexion de développement indisponible."
       );
     } finally {
       setBusy(false);
@@ -65,11 +65,11 @@ export function LoginScreen({ error, onDevLogin }: LoginScreenProps) {
           </div>
         )}
 
-        {ssoConfigured === undefined && (
+        {config === undefined && (
           <p className="text-xs text-slate-600">Vérification de la configuration…</p>
         )}
 
-        {ssoConfigured === true && (
+        {config?.sso_configured && (
           <a
             href={api.loginUrl()}
             className="flex w-full items-center justify-center gap-2.5 rounded-md bg-cyan-500 px-4 py-2.5 text-sm font-medium text-slate-950 shadow-glow-sm transition hover:bg-cyan-400"
@@ -84,14 +84,13 @@ export function LoginScreen({ error, onDevLogin }: LoginScreenProps) {
           </a>
         )}
 
-        {/* SSO pas encore configuré côté backend : la connexion de dev est le
-            SEUL chemin qui marche, donc on la met directement en avant plutôt
-            que de la cacher derrière un bouton qui échouerait (503). */}
-        {ssoConfigured === false && (
+        {/* Environnement de dev sans SSO : la connexion de dev est le SEUL
+            chemin qui marche, donc on la met directement en avant. Jamais
+            proposée en production (dev_login_enabled=false côté backend). */}
+        {config?.dev_login_enabled && (
           <div className="space-y-3 text-left">
             <div className="rounded-md border border-amber-500/25 bg-amber-500/10 p-3 text-xs text-amber-200">
-              SSO Microsoft 365 pas encore configuré côté serveur (en attente d'accès admin Entra) — connexion de
-              développement en attendant.
+              Environnement de développement : connexion sans SSO, sans vérification d'identité.
             </div>
             <form onSubmit={handleDevLogin} className="space-y-2">
               <label htmlFor="dev-email" className="text-xs font-medium text-slate-400">
@@ -118,7 +117,11 @@ export function LoginScreen({ error, onDevLogin }: LoginScreenProps) {
           </div>
         )}
 
-        <p className="text-xs text-slate-600">Prototype — toutes les données sont fictives.</p>
+        {config && !config.sso_configured && !config.dev_login_enabled && (
+          <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-left text-sm text-red-300">
+            Connexion indisponible : le serveur est injoignable ou le SSO n'est pas configuré.
+          </div>
+        )}
       </div>
     </div>
   );

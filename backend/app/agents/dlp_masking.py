@@ -1,6 +1,6 @@
 """
 Module 2 (extension) — DLP : masquage des données personnelles avant tout
-envoi externe (LLM, puis transitivement Jira/GitLab via le module 5).
+envoi externe (LLM, puis transitivement Jira via le module 5).
 
 Vit dans app/agents/ (comme llm_layer.py) et pas dans app/services/ : c'est
 une infrastructure LLM-adjacente utilisée par RequirementAnalyzerAgent, pas
@@ -13,7 +13,7 @@ session.context) entre dans le pipeline. Le module 3 (Test Design) ne
 travaille JAMAIS sur raw_input directement, seulement sur le
 RequirementAnalysis produit par le module 2 (cf.
 session_service._run_test_design) : si le module 2 masque avant l'appel LLM,
-tout ce qui en dérive — module 3, puis les tickets Jira/GitLab créés par le
+tout ce qui en dérive — module 3, puis les tickets Jira créés par le
 module 5 (ticket_service._build_drafts) — hérite du masquage sans logique
 dupliquée à chaque point de sortie.
 
@@ -68,7 +68,7 @@ class NoOpMaskingProvider(BaseMaskingProvider):
     """
     Ne masque rien — utilisé quand DLP_MASK_ENABLED=false, et forcé dans
     toute la suite de tests (cf. tests/conftest.py::_disable_dlp_masking_in_tests)
-    pour que les assertions basées sur des mots-clés (MockProvider) restent
+    pour que les assertions basées sur des mots-clés (FakeLLMProvider des tests) restent
     déterministes, et pour ne pas payer le chargement du modèle spaCy
     (~1-2s) à chaque run.
     """

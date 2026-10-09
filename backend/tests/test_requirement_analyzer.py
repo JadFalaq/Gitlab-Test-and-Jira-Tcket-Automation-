@@ -17,7 +17,8 @@ import json
 
 import pytest
 
-from app.agents.llm_layer import BaseLLMProvider, LLMTimeoutError, MockProvider
+from app.agents.llm_layer import BaseLLMProvider, LLMTimeoutError
+from tests.fakes.llm import FakeLLMProvider
 from app.agents.requirement_analyzer import (
     RequirementAnalysisError,
     RequirementAnalyzerAgent,
@@ -152,7 +153,7 @@ class TestRequirementAnalyzerAgent:
     @pytest.mark.parametrize("key", list(FICTIONAL_REQUESTS.keys()))
     async def test_analyze_fictional_requests(self, key):
         user_input, mock_json = FICTIONAL_REQUESTS[key]
-        provider = MockProvider(custom_responses={user_input[:20].lower(): mock_json})
+        provider = FakeLLMProvider(custom_responses={user_input[:20].lower(): mock_json})
         agent = RequirementAnalyzerAgent(llm_provider=provider)
 
         result = await agent.analyze(RequirementAnalysisRequest(user_input=user_input))
@@ -166,7 +167,7 @@ class TestRequirementAnalyzerAgent:
     @pytest.mark.asyncio
     async def test_analyze_with_context(self):
         user_input, mock_json = FICTIONAL_REQUESTS["feature_qr"]
-        provider = MockProvider(custom_responses={user_input[:20].lower(): mock_json})
+        provider = FakeLLMProvider(custom_responses={user_input[:20].lower(): mock_json})
         agent = RequirementAnalyzerAgent(llm_provider=provider)
 
         result = await agent.analyze(

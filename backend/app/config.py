@@ -5,9 +5,16 @@ Utilise pydantic-settings pour charger les variables d'environnement
 depuis un fichier .env ou l'environnement système.
 """
 
+from typing import Literal, Optional
+
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
-from pydantic import Field
-from typing import Optional
+
+# Valeur de dev du secret de session : refusée au démarrage en APP_ENV=prod.
+DEV_SESSION_SECRET = "dev-insecure-secret-change-me-in-env-please-32-bytes-min"
+
+# Providers LLM réels acceptés en production (cf. app/agents/llm_layer.py).
+SUPPORTED_LLM_PROVIDERS: tuple[str, ...] = ("ollama",)
 
 
 class Settings(BaseSettings):
@@ -19,14 +26,19 @@ class Settings(BaseSettings):
     """
 
     # --- Application ---
+    # "dev"  : poste du développeur (dev-login autorisé)
+    # "test" : suite pytest uniquement
+    # "prod" : toute instance utilisée par d'autres personnes — le démarrage
+    #          échoue si la configuration est incomplète (cf. _check_production)
+    APP_ENV: Literal["dev", "test", "prod"] = Field(default="dev", description="Environnement d'exécution")
     APP_NAME: str = "Test Automation Agent"
     APP_VERSION: str = "0.1.0-prototype"
     DEBUG: bool = True
 
     # --- LLM Provider ---
-    # Valeurs supportées : "ollama", "mock"
-    # "mock" renvoie des réponses pré-définies (pour les tests)
-    LLM_PROVIDER: str = Field(default="mock", description="LLM provider to use: 'ollama' or 'mock'")
+    # Valeurs supportées : voir SUPPORTED_LLM_PROVIDERS. Le faux provider des
+    # tests vit dans tests/fakes/ et n'est jamais disponible dans l'application.
+    LLM_PROVIDER: str = Field(default="ollama", description="LLM provider to use")
 
     # --- Ollama ---
     OLLAMA_BASE_URL: str = Field(default="http://localhost:11434", description="Ollama API base URL")
@@ -56,16 +68,11 @@ class Settings(BaseSettings):
         description="Database URL (async, via aiosqlite pour SQLite)",
     )
 
-    # --- Jira (sandbox/mock) ---
+    # --- Jira (compte de service) ---
     JIRA_BASE_URL: Optional[str] = Field(default=None, description="Jira Cloud sandbox URL")
-    JIRA_API_TOKEN: Optional[str] = Field(default=None, description="Jira API token (never use production!)")
+    JIRA_API_TOKEN: Optional[str] = Field(default=None, description="Jira API token du compte de service")
     JIRA_USER_EMAIL: Optional[str] = Field(default=None, description="Jira user email for auth")
     JIRA_PROJECT_KEY: str = Field(default="PROTO", description="Default Jira project key (fictitious)")
-
-    # --- GitLab (sandbox/mock) ---
-    GITLAB_BASE_URL: Optional[str] = Field(default=None, description="GitLab sandbox URL")
-    GITLAB_PRIVATE_TOKEN: Optional[str] = Field(default=None, description="GitLab private token")
-    GITLAB_PROJECT_ID: Optional[str] = Field(default=None, description="GitLab project ID")
 
     # --- CORS (for frontend dev server) ---
     CORS_ORIGINS: list[str] = Field(default=["http://localhost:5173", "http://localhost:3000"])
@@ -123,9 +130,9 @@ class Settings(BaseSettings):
     # (issuer="https://accounts.google.com") ou Microsoft Entra ID
     # (issuer="https://login.microsoftonline.com/<tenant-id>/v2.0"), les deux
     # exposant le même document de découverte standard — voir
-    # app/agents/auth_layer.py. Tous les comptes partagent le même provider
-    # Jira/GitLab (settings.JIRA_*/GITLAB_* ci-dessus) : pas de lien
-    # individuel compte SSO <-> compte Jira.
+    # app/auth/oidc.py. Tous les comptes partagent le même compte de
+    # service Jira (settings.JIRA_* ci-dessus) : pas de lien individuel
+    # compte SSO <-> compte Jira.
     AUTH_OIDC_ISSUER: Optional[str] = Field(
         default=None, description="URL d'issuer OIDC du fournisseur SSO de l'entreprise"
     )
@@ -143,7 +150,7 @@ class Settings(BaseSettings):
         default="http://localhost:5173", description="URL du frontend, pour la redirection post-login"
     )
     AUTH_SESSION_SECRET: str = Field(
-        default="dev-insecure-secret-change-me-in-env-please-32-bytes-min",
+        default=DEV_SESSION_SECRET,
         description="Clé de signature du cookie de session applicatif (JWT) — À CHANGER en .env, jamais la valeur par défaut hors dev local",
     )
     AUTH_SESSION_MAX_AGE_SECONDS: int = Field(
@@ -165,12 +172,52 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ):
-        # Exclut délibérément `env_settings` (variables d'environnement du
-        # process/shell) : une variable globale comme DATABASE_URL, définie
-        # par un autre projet sur la machine, ne doit jamais pouvoir
-        # court-circuiter le .env de CE projet. Seul .env (ou les valeurs
-        # par défaut ci-dessus) pilote la config ici.
-        return (init_settings, dotenv_settings, file_secret_settings)
+        # Priorité : .env du projet > variables d'environnement > défauts.
+        # - En conteneur (Docker, PaaS), il n'y a pas de .env : la config vient
+        #   des variables d'environnement.
+        # - Sur un poste de dev, le .env du projet gagne : une variable globale
+        #   du poste (ex: DATABASE_URL d'un autre projet) ne doit pas le
+        #   court-circuiter.
+        return (init_settings, dotenv_settings, env_settings, file_secret_settings)
+
+    @property
+    def dev_login_enabled(self) -> bool:
+        """Connexion sans SSO : jamais en prod, jamais quand un SSO est configuré."""
+        return self.APP_ENV in ("dev", "test") and not self.AUTH_OIDC_ISSUER
+
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV == "prod"
+
+    @model_validator(mode="after")
+    def _check_production(self) -> "Settings":
+        """En APP_ENV=prod, refuse de démarrer si la configuration est incomplète."""
+        if self.APP_ENV != "prod":
+            return self
+
+        problems: list[str] = []
+        if self.AUTH_SESSION_SECRET == DEV_SESSION_SECRET:
+            problems.append("AUTH_SESSION_SECRET a encore sa valeur de développement")
+        elif len(self.AUTH_SESSION_SECRET.encode("utf-8")) < 32:
+            problems.append("AUTH_SESSION_SECRET doit faire au moins 32 octets")
+        if self.LLM_PROVIDER not in SUPPORTED_LLM_PROVIDERS:
+            problems.append(
+                f"LLM_PROVIDER='{self.LLM_PROVIDER}' non supporté (attendu : {', '.join(SUPPORTED_LLM_PROVIDERS)})"
+            )
+        for name in ("JIRA_BASE_URL", "JIRA_API_TOKEN", "JIRA_USER_EMAIL", "JIRA_PROJECT_KEY"):
+            if not getattr(self, name):
+                problems.append(f"{name} manquant (Jira est obligatoire en production)")
+        for name in ("AUTH_OIDC_ISSUER", "AUTH_OIDC_CLIENT_ID", "AUTH_OIDC_CLIENT_SECRET"):
+            if not getattr(self, name):
+                problems.append(f"{name} manquant (le SSO est obligatoire en production)")
+
+        if problems:
+            # Pydantic remonte ce ValueError en ValidationError à la construction
+            # de `settings` : l'import de app.config, donc le démarrage, échoue.
+            raise ValueError(
+                "Configuration de production incomplète :\n- " + "\n- ".join(problems)
+            )
+        return self
 
 
 # Singleton instance

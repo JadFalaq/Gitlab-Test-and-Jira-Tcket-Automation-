@@ -1,39 +1,30 @@
 """
-Module 5 — Intégration Jira/GitLab : Schémas d'interface (Input/Output)
+Module 5 — Intégration Jira : Schémas d'interface (Input/Output)
 
 Transforme une session validée (RequirementAnalysis + TestDesignOutput, sortie
-du module 4) en tickets créés sur des providers externes (Jira Cloud, GitLab).
+du module 4) en tickets Jira Cloud.
 
 Design decisions:
-- `TicketDraft` est le format pivot, indépendant du provider : le service
+- `TicketDraft` est le format pivot, indépendant de l'API : le service
   (app/services/ticket_service.py) construit un draft par user story, puis
-  chaque provider (app/integrations/*.py) le traduit vers son format d'API
-  natif — même logique que LLMRequest/LLMResponse au module 1.
-- Un ticket créé garde une trace du provider et de l'URL réelle pour que
-  l'ingénieur puisse cliquer directement vers Jira/GitLab depuis l'UI.
-- `status` est une chaîne libre (pas de Literal) : le vocabulaire de statut
-  diffère entre Jira ("To Do"/"In Progress"/"Done") et GitLab
-  ("opened"/"closed") — normaliser perdrait de l'information utile en mode
-  suivi (module 6).
+  le provider (app/integrations/jira_provider.py) le traduit vers son format
+  d'API natif — même logique que LLMRequest/LLMResponse au module 1.
+- Un ticket créé garde l'URL réelle pour que l'ingénieur puisse cliquer
+  directement vers Jira depuis l'UI.
+- `status` est une chaîne libre (pas de Literal) : les statuts Jira dépendent
+  du workflow configuré dans chaque projet ("To Do", "In Review", ...).
+- `provider` reste stocké avec chaque ticket (toujours "jira") pour garder un
+  format de données explicite si un autre tracker est ajouté un jour.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
-TicketProviderName = Literal["jira", "gitlab", "mock"]
-
-
-class TicketCreateRequest(BaseModel):
-    """Corps optionnel de POST /api/sessions/{id}/tickets/create."""
-
-    providers: Optional[list[Literal["jira", "gitlab"]]] = Field(
-        default=None,
-        description="Sous-ensemble de providers à utiliser. Par défaut : jira + gitlab (les deux).",
-    )
+TicketProviderName = Literal["jira"]
 
 
 class TicketDraft(BaseModel):
@@ -48,9 +39,9 @@ class TicketDraft(BaseModel):
 class CreatedTicket(BaseModel):
     """Un ticket effectivement créé chez un provider externe."""
 
-    provider: TicketProviderName
-    external_id: str = Field(..., description="Identifiant interne du provider (ex: issue IID GitLab)")
-    key: str = Field(..., description="Clé lisible (ex: 'PROTO-42' pour Jira, '#17' pour GitLab)")
+    provider: TicketProviderName = "jira"
+    external_id: str = Field(..., description="Identifiant interne Jira (id numérique de l'issue)")
+    key: str = Field(..., description="Clé lisible (ex: 'PROTO-42')")
     url: str = Field(..., description="Lien direct vers le ticket")
     title: str
     status: str = Field(..., description="Statut brut renvoyé par le provider")
@@ -78,7 +69,7 @@ class TicketStatusUpdate(BaseModel):
 class TrackedTicket(BaseModel):
     """Vue agrégée d'un ticket pour le tableau de suivi temps réel (module 6)."""
 
-    provider: TicketProviderName
+    provider: TicketProviderName = "jira"
     external_id: str
     key: str
     url: str
@@ -91,7 +82,6 @@ class TrackedTicket(BaseModel):
 
 __all__ = [
     "TicketProviderName",
-    "TicketCreateRequest",
     "TicketDraft",
     "CreatedTicket",
     "TicketCreationResult",

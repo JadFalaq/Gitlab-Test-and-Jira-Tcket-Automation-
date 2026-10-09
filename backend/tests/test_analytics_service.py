@@ -131,22 +131,16 @@ class TestComputeSummary:
         assert summary.total_test_regenerations == 1
         assert summary.average_regenerations_per_session == pytest.approx(1.5)
 
-    def test_tickets_by_provider(self):
+    def test_total_tickets_created(self):
+        ticket = {"provider": "jira", "external_id": "1", "key": "P-1", "url": "u", "title": "t", "status": "s"}
         sessions = [
-            _session(
-                "tickets_created",
-                tickets=[
-                    {"provider": "jira", "external_id": "1", "key": "P-1", "url": "u", "title": "t", "status": "s"},
-                    {"provider": "gitlab", "external_id": "2", "key": "#2", "url": "u", "title": "t", "status": "s"},
-                ],
-            )
+            _session("tickets_created", tickets=[ticket, {**ticket, "external_id": "2", "key": "P-2"}]),
+            _session("tickets_created", tickets=[{**ticket, "external_id": "3", "key": "P-3"}]),
         ]
 
         summary = compute_summary(sessions)
 
-        assert summary.total_tickets_created == 2
-        counts = {b.provider: b.count for b in summary.tickets_by_provider}
-        assert counts == {"jira": 1, "gitlab": 1}
+        assert summary.total_tickets_created == 3
 
     def test_pipeline_duration_only_for_completed(self):
         sessions = [

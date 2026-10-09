@@ -17,7 +17,8 @@ import json
 
 import pytest
 
-from app.agents.llm_layer import BaseLLMProvider, LLMTimeoutError, MockProvider
+from app.agents.llm_layer import BaseLLMProvider, LLMTimeoutError
+from tests.fakes.llm import FakeLLMProvider
 from app.agents.test_design_agent import _SYSTEM_PROMPT, TestDesignAgent, TestDesignError
 from app.config import settings
 from app.schemas.llm import LLMRequest, LLMResponse, LLMUsage
@@ -208,7 +209,7 @@ class _CapturingProvider(BaseLLMProvider):
 class TestTestDesignAgentNominal:
     @pytest.mark.asyncio
     async def test_design_returns_valid_output(self):
-        provider = MockProvider(custom_responses={"paiement": _valid_test_design_json()})
+        provider = FakeLLMProvider(custom_responses={"paiement": _valid_test_design_json()})
         agent = TestDesignAgent(llm_provider=provider)
 
         result = await agent.design(_fictional_requirement())

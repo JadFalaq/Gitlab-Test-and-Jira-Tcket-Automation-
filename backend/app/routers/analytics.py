@@ -26,8 +26,9 @@ async def get_analytics_summary(
     """
     Module 8 : simple garde d'authentification (il faut être connecté pour
     voir le dashboard), PAS de filtrage par utilisateur — analytics agrège
-    volontairement TOUTE l'équipe (même logique que le tracking Jira/GitLab
-    partagé, cf. routers/tracking.py). À revoir si un jour un besoin de vue
-    "mes stats à moi" apparaît.
+    volontairement TOUTE l'équipe : uniquement des compteurs, aucun contenu
+    de session (contrairement au suivi, filtré par utilisateur, cf.
+    routers/tracking.py). À revoir si un besoin de vue "mes stats à moi"
+    apparaît.
     """
     return await analytics_service.get_summary(db)

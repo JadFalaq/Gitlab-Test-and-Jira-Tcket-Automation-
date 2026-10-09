@@ -17,7 +17,8 @@ from sqlalchemy import select
 
 from app.agents.chat_agent import ChatAgent, ChatAgentError
 from app.agents.embedding_layer import BaseEmbeddingProvider
-from app.agents.llm_layer import BaseLLMProvider, LLMResponse, MockProvider
+from app.agents.llm_layer import BaseLLMProvider, LLMResponse
+from tests.fakes.llm import FakeLLMProvider
 from app.agents.requirement_analyzer import RequirementAnalyzerAgent
 from app.agents.test_design_agent import TestDesignAgent
 from app.agents.vision_layer import BaseVisionProvider
@@ -59,7 +60,7 @@ VALID_TEST_DESIGN_JSON = json.dumps({
                     "name": "s1",
                     # @negative : satisfait la vérification de couverture du
                     # module 3 (cf. TestDesignAgent._coverage_feedback) —
-                    # sans ça, MockProvider (réponse fixe) déclencherait une
+                    # sans ça, FakeLLMProvider (réponse fixe) déclencherait une
                     # relance corrective à chaque test qui passe par ici.
                     "tags": ["@negative"],
                     "steps": [
@@ -77,7 +78,7 @@ INVALID_JSON = "Ceci n'est pas du JSON valide."
 
 
 def _working_analyzer() -> RequirementAnalyzerAgent:
-    return RequirementAnalyzerAgent(llm_provider=MockProvider(custom_responses={"paiement": VALID_REQUIREMENT_JSON}))
+    return RequirementAnalyzerAgent(llm_provider=FakeLLMProvider(custom_responses={"paiement": VALID_REQUIREMENT_JSON}))
 
 
 def _broken_analyzer() -> RequirementAnalyzerAgent:
@@ -85,17 +86,17 @@ def _broken_analyzer() -> RequirementAnalyzerAgent:
     # pas sur le dernier message (qui change après un essai raté) —
     # garantit un échec systématique sur les 3 tentatives.
     return RequirementAnalyzerAgent(
-        llm_provider=MockProvider(custom_responses={"requirement analyzer agent": INVALID_JSON})
+        llm_provider=FakeLLMProvider(custom_responses={"requirement analyzer agent": INVALID_JSON})
     )
 
 
 def _working_designer() -> TestDesignAgent:
-    return TestDesignAgent(llm_provider=MockProvider(custom_responses={"paiement": VALID_TEST_DESIGN_JSON}))
+    return TestDesignAgent(llm_provider=FakeLLMProvider(custom_responses={"paiement": VALID_TEST_DESIGN_JSON}))
 
 
 def _broken_designer() -> TestDesignAgent:
     return TestDesignAgent(
-        llm_provider=MockProvider(custom_responses={"test design agent": INVALID_JSON})
+        llm_provider=FakeLLMProvider(custom_responses={"test design agent": INVALID_JSON})
     )
 
 
@@ -1066,7 +1067,7 @@ class TestChatFlow:
         session = await session_service.create_session(
             db_session, SessionCreateRequest(user_input=FICTIONAL_USER_INPUT), user_id=FICTIONAL_USER_ID
         )
-        chat_agent = ChatAgent(llm_provider=MockProvider())
+        chat_agent = ChatAgent(llm_provider=FakeLLMProvider())
 
         result = await session_service.send_chat_message(
             db_session, session.id, FICTIONAL_USER_ID, "[FICTIF] c'est pour des clients particuliers", chat_agent
@@ -1087,7 +1088,7 @@ class TestChatFlow:
 
         with pytest.raises(InvalidSessionTransitionError):
             await session_service.send_chat_message(
-                db_session, session.id, FICTIONAL_USER_ID, "trop tard", ChatAgent(llm_provider=MockProvider())
+                db_session, session.id, FICTIONAL_USER_ID, "trop tard", ChatAgent(llm_provider=FakeLLMProvider())
             )
 
     @pytest.mark.asyncio
@@ -1153,7 +1154,7 @@ class TestChatFlow:
             session.id,
             FICTIONAL_USER_ID,
             "[FICTIF] uniquement pour les clients particuliers, pas les commerçants",
-            ChatAgent(llm_provider=MockProvider()),
+            ChatAgent(llm_provider=FakeLLMProvider()),
         )
         await session_service.finalize_chat(db_session, session.id, FICTIONAL_USER_ID)
 

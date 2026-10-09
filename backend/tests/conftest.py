@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.config import settings
+from app.integrations import factory
 from app.models.session import Base
+from tests.fakes.tickets import FakeJiraProvider
 
 
 @pytest.fixture(autouse=True)
@@ -21,7 +23,7 @@ def _disable_dlp_masking_in_tests(monkeypatch):
     """
     DLP (Presidio + spaCy, cf. app/agents/dlp_masking.py) est désactivé dans
     toute la suite de tests : les assertions basées sur des mots-clés
-    (MockProvider.complete cherche "paiement"/"requirement analyzer agent"
+    (FakeLLMProvider.complete cherche "paiement"/"requirement analyzer agent"
     dans le texte) doivent rester déterministes, et le chargement du modèle
     spaCy (~1-2s) ne doit pas alourdir chaque run. Le comportement réel
     (DLP_MASK_ENABLED=true par défaut, cf. app/config.py) est couvert par
@@ -59,37 +61,35 @@ def _disable_vision_in_tests(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _disable_real_ticket_providers_in_tests(monkeypatch):
-    """
-    Force Jira/GitLab à "non configuré" pour toute la suite de tests, quoi
-    que contienne le backend/.env réel du poste de développement.
+def _test_environment(monkeypatch):
+    """APP_ENV=test pour toute la suite, quoi que contienne backend/.env."""
+    monkeypatch.setattr(settings, "APP_ENV", "test")
 
-    Sans ce garde-fou, dès que backend/.env contient de vrais identifiants
-    Jira/GitLab (cas réel : un ingénieur configure le prototype contre son
-    propre compte pour l'utiliser), deux choses se produisent silencieusement :
-    1. app/integrations/factory.py::_jira_configured() (et son équivalent
-       GitLab) devient vrai, donc get_ticket_provider_by_name("jira") renvoie
-       le VRAI JiraProvider au lieu de MockTicketProvider dans les tests qui
-       passent par create_tickets(providers=["jira"]) — appels réseau réels
-       pendant `pytest`, contraire à la règle "jamais d'appel réseau réel
-       dans un test" (CLAUDE.md).
-    2. JiraProvider(base_url=None, ...) (construction directe, cf.
-       test_create_ticket_missing_config_raises) retombe sur
-       `base_url or settings.JIRA_BASE_URL` — si settings.JIRA_BASE_URL est
-       renseigné, passer explicitement None au constructeur ne suffit plus à
-       simuler une config absente.
-    Découvert le 21/07/2026 en configurant un vrai compte Jira sandbox pour
-    l'utilisateur : 2 tests ont silencieusement tapé la vraie API Jira.
+
+@pytest.fixture(autouse=True)
+def _disable_real_jira_in_tests(monkeypatch):
     """
-    for name in (
-        "JIRA_BASE_URL",
-        "JIRA_API_TOKEN",
-        "JIRA_USER_EMAIL",
-        "GITLAB_BASE_URL",
-        "GITLAB_PRIVATE_TOKEN",
-        "GITLAB_PROJECT_ID",
-    ):
+    Efface la config Jira pour toute la suite de tests, quoi que contienne le
+    backend/.env réel du poste de développement : aucun test ne doit
+    contacter le vrai Jira (incident du 21/07/2026 : 2 tests avaient tapé la
+    vraie API Jira après configuration d'un compte sandbox). Les tests de
+    JiraProvider passent leurs paramètres explicitement et utilisent
+    httpx.MockTransport.
+    """
+    for name in ("JIRA_BASE_URL", "JIRA_API_TOKEN", "JIRA_USER_EMAIL"):
         monkeypatch.setattr(settings, name, None)
+
+
+@pytest.fixture(autouse=True)
+def fake_jira(monkeypatch) -> FakeJiraProvider:
+    """
+    Remplace le provider de tickets par un faux Jira en mémoire (une
+    instance neuve par test). Les tests le reçoivent en paramètre pour le
+    régler (`configured`, `fail_creation`) ou inspecter ce qui a été créé.
+    """
+    provider = FakeJiraProvider()
+    monkeypatch.setattr(factory, "get_ticket_provider", provider.factory)
+    return provider
 
 
 @pytest.fixture(autouse=True)
@@ -97,8 +97,8 @@ def _disable_real_sso_in_tests(monkeypatch):
     """
     Force AUTH_OIDC_ISSUER/CLIENT_ID/CLIENT_SECRET à None pour toute la
     suite de tests, quoi que contienne le backend/.env réel du poste de
-    développement — même garde-fou que _disable_real_ticket_providers_in_tests
-    ci-dessus (découvert avec Jira le 21/07/2026) : sans ça, un poste où le
+    développement — même garde-fou que _disable_real_jira_in_tests
+    (découvert avec Jira le 21/07/2026) : sans ça, un poste où le
     SSO a été configuré verrait POST /api/auth/dev-login se désactiver (404)
     de façon non-déterministe selon la machine qui lance `pytest`.
     """

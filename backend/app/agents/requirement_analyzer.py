@@ -111,7 +111,7 @@ class RequirementAnalyzerAgent:
         app/agents/dlp_masking.py) AVANT toute construction de message LLM —
         seul point d'entrée du texte brut de l'ingénieur dans le pipeline,
         le masquage se propage donc naturellement au module 3 puis aux
-        tickets Jira/GitLab (module 5) sans logique dupliquée.
+        tickets Jira (module 5) sans logique dupliquée.
 
         RAG (few-shot) : `examples` (optionnel) est une liste de
         RequirementAnalysis passés, déjà validés par un humain, retrouvés

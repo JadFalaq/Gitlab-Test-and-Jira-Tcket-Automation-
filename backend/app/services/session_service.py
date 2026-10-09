@@ -669,29 +669,22 @@ async def accept_tests(db: AsyncSession, session_id: str, user_id: str) -> Sessi
 
 
 # ---------------------------------------------------------------------------
-# Module 5 — Intégration Jira/GitLab
+# Module 5 — Intégration Jira
 # ---------------------------------------------------------------------------
 
-_DEFAULT_TICKET_PROVIDERS = ["jira", "gitlab"]
 
-
-async def create_tickets(
-    db: AsyncSession,
-    session_id: str,
-    user_id: str,
-    providers: Optional[list[str]] = None,
-) -> SessionModel:
+async def create_tickets(db: AsyncSession, session_id: str, user_id: str) -> SessionModel:
     """
-    Crée les tickets (un par user story) sur les providers demandés.
+    Crée les tickets Jira (un par user story).
 
     Appelable depuis 'validated' ou 'ticket_creation_failed' (retry). Passe en
     'ticket_creation_failed' seulement si AUCUN ticket n'a pu être créé —
     sinon 'tickets_created', même avec des erreurs partielles (visibles dans
     error_message).
 
-    Tous les comptes utilisateur (module 8) partagent le même provider
-    Jira/GitLab (settings.JIRA_*/GITLAB_*) — `user_id` ne sert ici qu'à
-    vérifier l'ownership de la session, jamais à choisir un provider différent.
+    Tous les comptes utilisateur (module 8) partagent le même compte de
+    service Jira (settings.JIRA_*) — `user_id` ne sert ici qu'à vérifier
+    l'ownership de la session.
     """
     session = await _get_or_404(db, session_id, user_id)
     if session.status not in ("validated", "ticket_creation_failed"):
@@ -700,11 +693,7 @@ async def create_tickets(
         )
 
     test_design = TestDesignOutput(**session.test_design_output)
-    result = await ticket_service.create_tickets(
-        session_id=session.id,
-        test_design=test_design,
-        providers=providers or _DEFAULT_TICKET_PROVIDERS,
-    )
+    result = await ticket_service.create_tickets(session_id=session.id, test_design=test_design)
 
     existing = list(session.tickets or [])
     session.tickets = existing + [t.model_dump(mode="json") for t in result.tickets]

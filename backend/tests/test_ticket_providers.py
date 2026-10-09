@@ -1,11 +1,10 @@
 """
-Tests unitaires — Module 5 : providers de tickets (Jira, GitLab, mock)
+Tests unitaires — Module 5 : provider Jira et sa factory
 
-MockTicketProvider est testé en profondeur (pas d'appel réseau, cf.
-app/integrations/mock_provider.py). JiraProvider/GitLabProvider sont testés
-via httpx.MockTransport (aucun appel réseau réel) pour vérifier le câblage
-HTTP (payload envoyé, parsing de la réponse, gestion d'erreurs) sans
-dépendre d'un vrai compte Jira/GitLab.
+JiraProvider est testé via httpx.MockTransport (aucun appel réseau réel)
+pour vérifier le câblage HTTP (payload envoyé, parsing de la réponse,
+gestion d'erreurs) sans dépendre d'un vrai compte Jira. La factory ne doit
+jamais renvoyer de faux provider : sans configuration, elle lève une erreur.
 
 Toutes les données sont fictives.
 """
@@ -17,14 +16,10 @@ import json
 import httpx
 import pytest
 
-from app.integrations.base import TicketNotFoundError, TicketProviderError
-from app.integrations.gitlab_provider import GitLabProvider
+from app.config import settings
+from app.integrations.base import TicketNotFoundError, TicketProviderError, TicketProviderNotConfiguredError
+from app.integrations.factory import get_ticket_provider
 from app.integrations.jira_provider import JiraProvider
-from app.integrations.mock_provider import (
-    MockTicketProvider,
-    _backdate_for_tests,
-    _reset_mock_store_for_tests,
-)
 from app.schemas.ticket import TicketDraft
 
 _RealAsyncClient = httpx.AsyncClient
@@ -44,50 +39,26 @@ def _patch_async_client(monkeypatch: pytest.MonkeyPatch, handler) -> None:
     monkeypatch.setattr(httpx, "AsyncClient", _factory)
 
 
-@pytest.fixture(autouse=True)
-def _reset_mock_store():
-    _reset_mock_store_for_tests()
-    yield
-    _reset_mock_store_for_tests()
+class TestTicketProviderFactory:
+    """La vraie factory (importée avant le remplacement fait par conftest)."""
 
+    def test_not_configured_raises_instead_of_mock(self, monkeypatch):
+        monkeypatch.setattr(settings, "JIRA_BASE_URL", None)
+        with pytest.raises(TicketProviderNotConfiguredError, match="Jira n'est pas configuré"):
+            get_ticket_provider()
 
-class TestMockTicketProvider:
-    @pytest.mark.asyncio
-    async def test_create_ticket_returns_to_do_status(self):
-        provider = MockTicketProvider(provider_label="jira")
-        draft = TicketDraft(title="[FICTIF] Paiement QR", description="desc", issue_type="story")
+    def test_partial_config_raises(self, monkeypatch):
+        monkeypatch.setattr(settings, "JIRA_BASE_URL", "https://jira.fictif.test")
+        monkeypatch.setattr(settings, "JIRA_API_TOKEN", "tok")
+        monkeypatch.setattr(settings, "JIRA_USER_EMAIL", None)
+        with pytest.raises(TicketProviderNotConfiguredError):
+            get_ticket_provider()
 
-        ticket = await provider.create_ticket(draft, session_id="s1")
-
-        assert ticket.provider == "jira"
-        assert ticket.status == "To Do"
-        assert ticket.title == draft.title
-        assert ticket.session_id == "s1"
-
-    @pytest.mark.asyncio
-    async def test_status_progresses_with_elapsed_time(self):
-        provider = MockTicketProvider(provider_label="gitlab")
-        draft = TicketDraft(title="[FICTIF] Story", description="", issue_type="task")
-        ticket = await provider.create_ticket(draft, session_id="s1")
-
-        assert await provider.get_ticket_status(ticket.external_id) == "To Do"
-
-        _backdate_for_tests(ticket.external_id, seconds_ago=25)
-        assert await provider.get_ticket_status(ticket.external_id) == "In Progress"
-
-        _backdate_for_tests(ticket.external_id, seconds_ago=90)
-        assert await provider.get_ticket_status(ticket.external_id) == "Done"
-
-    @pytest.mark.asyncio
-    async def test_get_status_unknown_ticket_raises(self):
-        provider = MockTicketProvider()
-
-        with pytest.raises(TicketNotFoundError):
-            await provider.get_ticket_status("does-not-exist")
-
-    @pytest.mark.asyncio
-    async def test_health_check_always_true(self):
-        assert await MockTicketProvider().health_check() is True
+    def test_configured_returns_jira_provider(self, monkeypatch):
+        monkeypatch.setattr(settings, "JIRA_BASE_URL", "https://jira.fictif.test")
+        monkeypatch.setattr(settings, "JIRA_API_TOKEN", "tok")
+        monkeypatch.setattr(settings, "JIRA_USER_EMAIL", "bot@fictif.test")
+        assert isinstance(get_ticket_provider(), JiraProvider)
 
 
 class TestJiraProvider:
@@ -255,77 +226,3 @@ class TestJiraProvider:
 
         with pytest.raises(TicketProviderError, match="HTTP 500"):
             await provider.get_ticket_status("10001")
-
-
-class TestGitLabProvider:
-    @pytest.mark.asyncio
-    async def test_create_ticket_missing_config_raises(self):
-        provider = GitLabProvider(base_url=None, private_token=None, project_id=None)
-
-        with pytest.raises(TicketProviderError):
-            await provider.create_ticket(TicketDraft(title="x", description=""), session_id="s1")
-
-    @pytest.mark.asyncio
-    async def test_create_ticket_success(self, monkeypatch):
-        def handler(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v4/projects/123/issues"
-            assert request.headers["PRIVATE-TOKEN"] == "tok"
-            return httpx.Response(
-                201,
-                json={"iid": 17, "web_url": "https://gitlab.fictif.test/proj/-/issues/17", "state": "opened"},
-            )
-
-        provider = GitLabProvider(
-            base_url="https://gitlab.fictif.test", private_token="tok", project_id="123"
-        )
-        _patch_async_client(monkeypatch, handler)
-
-        ticket = await provider.create_ticket(
-            TicketDraft(title="[FICTIF] Bug", description="desc", issue_type="bug"), session_id="s1"
-        )
-
-        assert ticket.key == "#17"
-        assert ticket.status == "opened"
-        assert ticket.provider == "gitlab"
-
-    @pytest.mark.asyncio
-    async def test_get_status_success(self, monkeypatch):
-        def handler(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v4/projects/123/issues/17"
-            return httpx.Response(200, json={"state": "closed"})
-
-        provider = GitLabProvider(
-            base_url="https://gitlab.fictif.test", private_token="tok", project_id="123"
-        )
-        _patch_async_client(monkeypatch, handler)
-
-        assert await provider.get_ticket_status("17") == "closed"
-
-    @pytest.mark.asyncio
-    async def test_get_status_404_raises_not_found(self, monkeypatch):
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(404, json={"message": "404 Not found"})
-
-        provider = GitLabProvider(
-            base_url="https://gitlab.fictif.test", private_token="tok", project_id="123"
-        )
-        _patch_async_client(monkeypatch, handler)
-
-        with pytest.raises(TicketNotFoundError):
-            await provider.get_ticket_status("99999")
-
-    @pytest.mark.asyncio
-    async def test_get_status_http_error_raises_provider_error(self, monkeypatch):
-        """Même contrat que Jira : un 401 GitLab doit sortir en
-        TicketProviderError typée, jamais en httpx.HTTPStatusError brute."""
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(401, json={"message": "401 Unauthorized"})
-
-        provider = GitLabProvider(
-            base_url="https://gitlab.fictif.test", private_token="tok", project_id="123"
-        )
-        _patch_async_client(monkeypatch, handler)
-
-        with pytest.raises(TicketProviderError, match="HTTP 401"):
-            await provider.get_ticket_status("17")

@@ -3,8 +3,8 @@ Tests unitaires — Module 1 : LLM Abstraction Layer
 
 Teste :
 - Sérialisation/désérialisation des schémas Pydantic
-- MockProvider : réponses correctes, matching de mots-clés
-- Factory : provider valide, provider inconnu
+- FakeLLMProvider (tests/fakes/llm.py) : réponses correctes, matching de mots-clés
+- Factory : provider valide, provider inconnu, faux provider jamais exposé
 - OllamaProvider : gestion d'erreurs (sans Ollama réel)
 
 Toutes les données sont fictives.
@@ -18,7 +18,6 @@ import pytest
 from app.schemas.llm import LLMMessage, LLMRequest, LLMResponse, LLMUsage
 from app.agents.llm_layer import (
     BaseLLMProvider,
-    MockProvider,
     OllamaProvider,
     get_llm_provider,
     register_provider,
@@ -28,6 +27,7 @@ from app.agents.llm_layer import (
     LLMTimeoutError,
     _PROVIDER_REGISTRY,
 )
+from tests.fakes.llm import FakeLLMProvider
 
 _RealAsyncClient = httpx.AsyncClient
 
@@ -149,20 +149,20 @@ class TestLLMSchemas:
 
 
 # ===========================================================================
-# Tests du MockProvider
+# Tests du FakeLLMProvider (double de test)
 # ===========================================================================
 
 
-class TestMockProvider:
+class TestFakeLLMProvider:
     """Tests du provider factice."""
 
     @pytest.fixture
     def mock_provider(self):
-        return MockProvider()
+        return FakeLLMProvider()
 
     @pytest.fixture
     def custom_mock_provider(self):
-        return MockProvider(custom_responses={
+        return FakeLLMProvider(custom_responses={
             "custom_keyword": "Réponse custom fictive",
         })
 
@@ -237,7 +237,7 @@ class TestMockProvider:
 
     @pytest.mark.asyncio
     async def test_mock_health_check(self, mock_provider):
-        """Le MockProvider est toujours healthy."""
+        """Le faux provider est toujours healthy."""
         assert await mock_provider.health_check() is True
 
 
@@ -249,10 +249,11 @@ class TestMockProvider:
 class TestProviderFactory:
     """Tests de la factory get_llm_provider."""
 
-    def test_get_mock_provider(self):
-        provider = get_llm_provider("mock")
-        assert isinstance(provider, MockProvider)
-        assert provider.provider_name == "mock"
+    def test_mock_provider_not_available_in_app(self):
+        """Le faux LLM des tests n'est jamais enregistré dans l'application."""
+        assert "mock" not in _PROVIDER_REGISTRY
+        with pytest.raises(ValueError, match="not found"):
+            get_llm_provider("mock")
 
     def test_get_ollama_provider(self):
         provider = get_llm_provider("ollama")
@@ -264,7 +265,7 @@ class TestProviderFactory:
             get_llm_provider("inexistent_provider")
 
     def test_unknown_provider_lists_available(self):
-        with pytest.raises(ValueError, match="mock"):
+        with pytest.raises(ValueError, match="ollama"):
             get_llm_provider("nope")
 
     def test_register_custom_provider(self):

@@ -1,66 +1,43 @@
 """
-Module 5 — Factory des providers de tickets
+Module 5 — Factory du provider de tickets (Jira uniquement)
 
-Sélectionne automatiquement, pour chaque plateforme (Jira, GitLab), le
-provider réel si sa configuration est complète, sinon le mock — même
-principe que .env.example : "laisser vide pour utiliser le mock". Décision
-prise au démarrage de chaque requête à partir de `settings` (pas de cache
-global) pour que les tests puissent surcharger `settings` sans redémarrer
-le process.
+Retourne le JiraProvider réel si sa configuration est complète, sinon lève
+`TicketProviderNotConfiguredError`. Il n'y a volontairement AUCUN repli
+vers un provider factice : un ticket "créé" doit toujours exister dans Jira.
+L'ancien repli silencieux vers un mock affichait "ticket créé" à
+l'utilisateur alors que rien n'existait côté Jira.
+
+Les tests remplacent `get_ticket_provider` par un faux provider
+(tests/fakes/tickets.py, branché dans tests/conftest.py). Le reste du code
+appelle donc toujours `factory.get_ticket_provider()` via le module, jamais
+via un import direct de la fonction, pour que ce remplacement soit visible.
 """
 
 from __future__ import annotations
 
-import logging
-
 from app.config import settings
-from app.integrations.base import BaseTicketProvider
-from app.integrations.gitlab_provider import GitLabProvider
+from app.integrations.base import BaseTicketProvider, TicketProviderNotConfiguredError
 from app.integrations.jira_provider import JiraProvider
-from app.integrations.mock_provider import MockTicketProvider
-
-logger = logging.getLogger(__name__)
 
 
-def _jira_configured() -> bool:
+def jira_configured() -> bool:
     return bool(settings.JIRA_BASE_URL and settings.JIRA_API_TOKEN and settings.JIRA_USER_EMAIL)
 
 
-def _gitlab_configured() -> bool:
-    return bool(settings.GITLAB_BASE_URL and settings.GITLAB_PRIVATE_TOKEN and settings.GITLAB_PROJECT_ID)
+def get_ticket_provider() -> BaseTicketProvider:
+    """Retourne le provider Jira configuré.
+
+    Raises:
+        TicketProviderNotConfiguredError: si JIRA_BASE_URL / JIRA_API_TOKEN /
+            JIRA_USER_EMAIL ne sont pas tous renseignés.
+    """
+    if not jira_configured():
+        raise TicketProviderNotConfiguredError(
+            "Jira n'est pas configuré (JIRA_BASE_URL, JIRA_API_TOKEN, JIRA_USER_EMAIL) : "
+            "aucun ticket ne peut être créé.",
+            provider="jira",
+        )
+    return JiraProvider()
 
 
-def get_jira_provider() -> BaseTicketProvider:
-    if _jira_configured():
-        return JiraProvider()
-    logger.info("Jira non configuré (.env) — utilisation du MockTicketProvider pour 'jira'")
-    return MockTicketProvider(provider_label="jira")
-
-
-def get_gitlab_provider() -> BaseTicketProvider:
-    if _gitlab_configured():
-        return GitLabProvider()
-    logger.info("GitLab non configuré (.env) — utilisation du MockTicketProvider pour 'gitlab'")
-    return MockTicketProvider(provider_label="gitlab")
-
-
-def get_configured_ticket_providers() -> list[BaseTicketProvider]:
-    """Retourne les providers actifs (Jira + GitLab), réels ou mock selon la config."""
-    return [get_jira_provider(), get_gitlab_provider()]
-
-
-def get_ticket_provider_by_name(name: str) -> BaseTicketProvider:
-    """Résout un provider par nom ('jira' ou 'gitlab'). Lève ValueError sinon."""
-    if name == "jira":
-        return get_jira_provider()
-    if name == "gitlab":
-        return get_gitlab_provider()
-    raise ValueError(f"Provider de tickets inconnu : '{name}' (attendu: 'jira' ou 'gitlab')")
-
-
-__all__ = [
-    "get_jira_provider",
-    "get_gitlab_provider",
-    "get_configured_ticket_providers",
-    "get_ticket_provider_by_name",
-]
+__all__ = ["jira_configured", "get_ticket_provider"]

@@ -84,9 +84,9 @@ export type SessionStatus =
   | "ticket_creation_failed"
   | "tickets_created";
 
-// --- Module 5 : Jira/GitLab ---
+// --- Module 5 : Jira ---
 
-export type TicketProviderName = "jira" | "gitlab" | "mock";
+export type TicketProviderName = "jira";
 
 export interface CreatedTicket {
   provider: TicketProviderName;
@@ -145,6 +145,8 @@ export interface SessionResponse {
   updated_at: string;
   completed_at: string | null;
   attachments: AttachmentResponse[];
+  /** Texte .feature de chaque feature, rendu par le backend (même ordre que test_design_output.gherkin_features). */
+  gherkin_feature_files: string[];
 }
 
 // --- Module 8 : authentification SSO ---
@@ -181,9 +183,9 @@ export interface PriorityBreakdown {
   count: number;
 }
 
-export interface TicketProviderBreakdown {
-  provider: string;
-  count: number;
+export interface AuthConfig {
+  sso_configured: boolean;
+  dev_login_enabled: boolean;
 }
 
 export interface AnalyticsSummary {
@@ -200,6 +202,5 @@ export interface AnalyticsSummary {
   rejected_sessions: number;
   acceptance_rate: number | null;
   total_tickets_created: number;
-  tickets_by_provider: TicketProviderBreakdown[];
   average_pipeline_duration_seconds: number | null;
 }

@@ -4,14 +4,6 @@ const STATUS_BADGE: Record<string, string> = {
   "To Do": "bg-slate-800 text-slate-400",
   "In Progress": "bg-amber-500/10 text-amber-300",
   Done: "bg-emerald-500/10 text-emerald-300",
-  opened: "bg-slate-800 text-slate-400",
-  closed: "bg-emerald-500/10 text-emerald-300",
-};
-
-const PROVIDER_LABEL: Record<string, string> = {
-  jira: "Jira",
-  gitlab: "GitLab",
-  mock: "Mock",
 };
 
 interface TicketPanelProps {
@@ -22,7 +14,7 @@ interface TicketPanelProps {
 }
 
 /**
- * Module 5 — affiche les tickets Jira/GitLab créés pour la session (ou
+ * Module 5 — affiche les tickets Jira créés pour la session (ou
  * propose de les créer) ; module 6 — bouton de rafraîchissement de statut.
  */
 export function TicketPanel({ session, busy, onCreateTickets, onRefreshTickets }: TicketPanelProps) {
@@ -31,7 +23,7 @@ export function TicketPanel({ session, busy, onCreateTickets, onRefreshTickets }
   return (
     <section className="space-y-4 rounded-lg border border-slate-800 bg-slate-900/60 p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-50">Tickets Jira / GitLab</h2>
+        <h2 className="text-lg font-semibold text-slate-50">Tickets Jira</h2>
         {hasTickets && (
           <button
             type="button"
@@ -57,7 +49,7 @@ export function TicketPanel({ session, busy, onCreateTickets, onRefreshTickets }
           disabled={busy}
           className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-950 shadow-glow-sm transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
         >
-          {busy ? "Création en cours…" : "Créer les tickets Jira/GitLab"}
+          {busy ? "Création en cours…" : "Créer les tickets Jira"}
         </button>
       )}
 
@@ -65,13 +57,13 @@ export function TicketPanel({ session, busy, onCreateTickets, onRefreshTickets }
         <ul className="space-y-2">
           {session.tickets.map((ticket) => (
             <li
-              key={`${ticket.provider}-${ticket.external_id}`}
+              key={ticket.external_id}
               className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/40 p-3"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-slate-100">{ticket.title}</p>
                 <p className="text-xs text-slate-500">
-                  {PROVIDER_LABEL[ticket.provider] ?? ticket.provider} · {ticket.key}
+                  {ticket.key}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">

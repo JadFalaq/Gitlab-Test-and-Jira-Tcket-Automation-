@@ -3,7 +3,7 @@ Tests unitaires — scripts/seed_rag_from_documents.py (amorçage RAG depuis
 des documents historiques, cf. docs/module_2_requirement_analyzer.md).
 
 N'exerce que _seed_one (logique pure : extraction -> agents -> stockage),
-avec des providers factices (MockProvider/embedder fixe) et la DB SQLite en
+avec des providers factices (FakeLLMProvider/embedder fixe) et la DB SQLite en
 mémoire partagée par le reste de la suite — pas argparse/main (juste de la
 plomberie CLI, sans valeur à tester). Vérifie surtout le contrat "jamais de
 ligne partielle/corrompue en base" sur les deux chemins d'échec (extraction,
@@ -26,7 +26,7 @@ from sqlalchemy import select
 
 from app.agents.dlp_masking import get_masking_provider
 from app.agents.embedding_layer import BaseEmbeddingProvider
-from app.agents.llm_layer import MockProvider
+from tests.fakes.llm import FakeLLMProvider
 from app.agents.requirement_analyzer import RequirementAnalyzerAgent
 from app.agents.test_design_agent import TestDesignAgent
 from app.models.session import GenerationModel
@@ -75,7 +75,7 @@ class _FixedVectorEmbedder(BaseEmbeddingProvider):
 
 
 def _working_analyzer() -> RequirementAnalyzerAgent:
-    return RequirementAnalyzerAgent(llm_provider=MockProvider(custom_responses={"export": VALID_REQUIREMENT_JSON}))
+    return RequirementAnalyzerAgent(llm_provider=FakeLLMProvider(custom_responses={"export": VALID_REQUIREMENT_JSON}))
 
 
 def _broken_analyzer() -> RequirementAnalyzerAgent:
@@ -83,12 +83,12 @@ def _broken_analyzer() -> RequirementAnalyzerAgent:
     # retry), pas sur le dernier message — garantit un échec systématique
     # sur les 3 tentatives (même convention que test_session_service.py).
     return RequirementAnalyzerAgent(
-        llm_provider=MockProvider(custom_responses={"requirement analyzer agent": "Pas du JSON valide."})
+        llm_provider=FakeLLMProvider(custom_responses={"requirement analyzer agent": "Pas du JSON valide."})
     )
 
 
 def _working_designer() -> TestDesignAgent:
-    return TestDesignAgent(llm_provider=MockProvider(custom_responses={"export": VALID_TEST_DESIGN_JSON}))
+    return TestDesignAgent(llm_provider=FakeLLMProvider(custom_responses={"export": VALID_TEST_DESIGN_JSON}))
 
 
 class TestSeedOne:
@@ -161,7 +161,7 @@ class TestSeedOne:
         doc.write_text("[FICTIF] Je veux exporter mes statistiques de vente en CSV.", encoding="utf-8")
         embedder = _FixedVectorEmbedder()
         broken_designer = TestDesignAgent(
-            llm_provider=MockProvider(custom_responses={"test design agent": "Pas du JSON valide."})
+            llm_provider=FakeLLMProvider(custom_responses={"test design agent": "Pas du JSON valide."})
         )
 
         outcome = await seed_rag._seed_one(

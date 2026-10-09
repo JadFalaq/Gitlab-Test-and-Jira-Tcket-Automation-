@@ -1,20 +1,17 @@
 """
-Module 5 — Intégration Jira/GitLab : couche d'abstraction
+Module 5 — Intégration Jira : couche d'abstraction
 
-Isole le reste du système du tracker de tickets configuré, exactement comme
+Isole le reste du système du tracker de tickets, exactement comme
 app/agents/llm_layer.py isole le système du provider LLM (module 1). Tout
 appel de création/suivi de ticket passe par cette interface.
 
 Architecture:
     BaseTicketProvider (ABC)
-        ├── JiraProvider    — Jira Cloud REST API v3 (issue réelle)
-        ├── GitLabProvider  — GitLab REST API v4 (issue réelle)
-        └── MockTicketProvider — tickets simulés, statut évolue avec le temps
-                                 (utile en démo sans compte Jira/GitLab et
-                                 dans les tests, pas d'appel réseau)
+        └── JiraProvider    — Jira Cloud REST API v3 (issue réelle)
 
-    get_configured_ticket_providers() — factory (app/integrations/factory.py)
-    qui retourne la liste des providers actifs selon la config (.env)
+    get_ticket_provider() — factory (app/integrations/factory.py), lève
+    TicketProviderNotConfiguredError si Jira n'est pas configuré. Les tests
+    utilisent un faux provider (tests/fakes/tickets.py).
 
 Design decisions:
     - Async par défaut (FastAPI est async), même convention que le module 1.
@@ -33,7 +30,7 @@ from app.schemas.ticket import CreatedTicket, TicketDraft
 
 
 class TicketProviderError(Exception):
-    """Erreur générique d'un provider de tickets (Jira, GitLab)."""
+    """Erreur générique d'un provider de tickets."""
 
     def __init__(self, message: str, provider: str, details: dict | None = None):
         self.provider = provider
@@ -47,13 +44,19 @@ class TicketNotFoundError(TicketProviderError):
     pass
 
 
+class TicketProviderNotConfiguredError(TicketProviderError):
+    """Le provider de tickets n'est pas configuré : aucune création possible."""
+
+    pass
+
+
 class BaseTicketProvider(ABC):
-    """Interface abstraite pour tous les providers de tickets (Jira, GitLab, ...)."""
+    """Interface abstraite des providers de tickets."""
 
     @property
     @abstractmethod
     def provider_name(self) -> str:
-        """Nom unique du provider (ex: 'jira', 'gitlab', 'mock')."""
+        """Nom unique du provider (ex: 'jira')."""
         ...
 
     @abstractmethod
@@ -82,4 +85,9 @@ class BaseTicketProvider(ABC):
         return True
 
 
-__all__ = ["BaseTicketProvider", "TicketProviderError", "TicketNotFoundError"]
+__all__ = [
+    "BaseTicketProvider",
+    "TicketProviderError",
+    "TicketNotFoundError",
+    "TicketProviderNotConfiguredError",
+]

@@ -130,7 +130,7 @@ class LLMResponse(BaseModel):
     )
     provider: str = Field(
         ...,
-        description="Nom du provider (ex: 'ollama', 'mock')",
+        description="Nom du provider (ex: 'ollama')",
     )
     usage: LLMUsage = Field(
         default_factory=LLMUsage,

@@ -6,9 +6,9 @@
 
 import type {
   AnalyticsSummary,
+  AuthConfig,
   SessionResponse,
   SessionSummary,
-  TicketProviderName,
   TrackedTicket,
   UserResponse,
 } from "./types";
@@ -49,7 +49,7 @@ export const api = {
 
   // Indique si un vrai SSO est configuré côté backend — pas de garde
   // d'authentification sur cette route (rien de sensible), cf. LoginScreen.tsx.
-  authConfig: () => request<{ sso_configured: boolean }>("/api/auth/config"),
+  authConfig: () => request<AuthConfig>("/api/auth/config"),
 
   me: () => request<UserResponse>("/api/auth/me"),
 
@@ -117,13 +117,10 @@ export const api = {
       body: JSON.stringify(guidance ? { guidance } : {}),
     }),
 
-  // --- Module 5 : Jira/GitLab ---
+  // --- Module 5 : Jira ---
 
-  createTickets: (id: string, providers?: TicketProviderName[]) =>
-    request<SessionResponse>(`/api/sessions/${id}/tickets/create`, {
-      method: "POST",
-      body: JSON.stringify(providers ? { providers } : {}),
-    }),
+  createTickets: (id: string) =>
+    request<SessionResponse>(`/api/sessions/${id}/tickets/create`, { method: "POST" }),
 
   refreshSessionTickets: (id: string) =>
     request<SessionResponse>(`/api/sessions/${id}/tickets/refresh`, { method: "POST" }),

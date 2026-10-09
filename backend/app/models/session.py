@@ -33,15 +33,15 @@ class UserModel(Base):
     """
     Module 8 — Multi-utilisateur (22/07/2026) : un compte par assigné,
     authentifié via SSO externe (OIDC générique — Google Workspace ou
-    Microsoft Entra ID, cf. app/agents/auth_layer.py). Aucun mot de passe
+    Microsoft Entra ID, cf. app/auth/oidc.py). Aucun mot de passe
     stocké ici : l'authentification est entièrement déléguée au fournisseur
     SSO, ce modèle ne fait que refléter l'identité renvoyée par son endpoint
     /userinfo.
 
     Créé/mis à jour (upsert par `email`) à chaque login réussi — voir
     app/services/auth_service.py::upsert_user. Tous les comptes utilisent le
-    même provider Jira/GitLab partagé (settings.JIRA_*/GITLAB_*, cf. module
-    5) : ce modèle ne stocke aucun identifiant Jira/GitLab individuel.
+    même compte de service Jira (settings.JIRA_*, cf. module 5) : ce modèle
+    ne stocke aucun identifiant Jira individuel.
     """
 
     __tablename__ = "users"
@@ -92,7 +92,7 @@ class SessionModel(Base):
 
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Module 5 — Intégration Jira/GitLab : tickets créés pour cette session
+    # Module 5 — Intégration Jira : tickets créés pour cette session
     # (liste de dicts sérialisés depuis CreatedTicket, voir app/schemas/ticket.py)
     # nullable=False + default=list : toujours une liste (jamais None), pour
     # que SessionResponse.tickets (list[CreatedTicket]) se construise sans

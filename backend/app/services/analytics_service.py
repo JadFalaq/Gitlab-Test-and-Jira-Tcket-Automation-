@@ -20,7 +20,6 @@ from app.schemas.analytics import (
     AnalyticsSummary,
     PriorityBreakdown,
     StatusBreakdown,
-    TicketProviderBreakdown,
     TypeBreakdown,
 )
 
@@ -58,8 +57,7 @@ def compute_summary(sessions: list[SessionModel]) -> AnalyticsSummary:
     completed = sum(1 for s in sessions if s.status in _COMPLETED_STATUSES)
     rejected = sum(1 for s in sessions if s.status in _REJECTED_STATUSES)
 
-    all_tickets = [t for s in sessions for t in (s.tickets or [])]
-    provider_counts = Counter(t["provider"] for t in all_tickets)
+    total_tickets = sum(len(s.tickets or []) for s in sessions)
 
     # completed_at (figé à la validation, module 4) plutôt que updated_at
     # (qui continue de changer à chaque sync de tickets, module 6) — cf.
@@ -91,10 +89,7 @@ def compute_summary(sessions: list[SessionModel]) -> AnalyticsSummary:
         acceptance_rate=(
             completed / (completed + rejected) if (completed + rejected) > 0 else None
         ),
-        total_tickets_created=len(all_tickets),
-        tickets_by_provider=[
-            TicketProviderBreakdown(provider=k, count=v) for k, v in sorted(provider_counts.items())
-        ],
+        total_tickets_created=total_tickets,
         average_pipeline_duration_seconds=_safe_mean(durations),
     )
 

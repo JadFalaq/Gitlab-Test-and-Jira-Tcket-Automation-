@@ -7,8 +7,8 @@ Ces schémas normalisent l'analyse d'une demande brute d'ingénieur
 
 Design decisions:
 - Les noms de champs reprennent exactement l'exemple fictif défini dans
-  MockProvider.DEFAULT_RESPONSES["analyze_requirement"] (module 1), pour
-  que ce mock reste un exemple valide sans duplication de schéma.
+  FakeLLMProvider.DEFAULT_RESPONSES["analyze_requirement"] (tests/fakes/llm.py),
+  pour que cet exemple reste valide sans duplication de schéma.
 - `ambiguities` n'est jamais bloquant : l'agent liste les zones floues,
   c'est le module 4 (validation humaine) qui tranche.
 - `confidence_score` reflète la confiance du LLM dans son analyse, pas
